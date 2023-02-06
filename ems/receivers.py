@@ -1,9 +1,9 @@
 from django.dispatch import receiver
 
-from .signals  import new_document_uploaded
+from . import signals
 from .services import add_document_to_cabinets_by_ids
 
-@receiver(new_document_uploaded)
+@receiver(signals.new_document_created)
 def store_in_cabinets(sender, **kwargs):
     doc = kwargs['document']
 

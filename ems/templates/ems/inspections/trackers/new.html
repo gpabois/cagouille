@@ -1,0 +1,11 @@
+{% extends 'ems/base.html' %}
+{% load i18n %} 
+{% load bootstrap5 %}
+
+{% block content %}
+<form action="" method="post" novalidate>
+    {% csrf_token %}
+    {% bootstrap_form form %}
+    <input type="submit" value="Envoyer">
+</form>
+{% endblock %}

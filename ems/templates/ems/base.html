@@ -1,11 +1,13 @@
-<!doctype html>
-<html lang="fr">
-    <head>
-        <meta charset="utf-8">
-        <title>{% block title %}Cagouille | EMS{% endblock %}</title>
-    </head>
-    <body>
-        {% block content %}
-        {% endblock %}
-    </body>
-</html>
+{% extends 'ems/bootstrap.html' %}
+
+{% load bootstrap5 %}
+
+{% block bootstrap5_content %}
+    {% include "ems/navbar.html" %}
+    <div class="container">
+        {% autoescape off %}{% bootstrap_messages %}{% endautoescape %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+{% endblock %}

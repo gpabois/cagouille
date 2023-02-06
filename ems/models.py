@@ -1,26 +1,50 @@
 from django.db import models
-from tree_queries.models import TreeNode
+from django.contrib.auth.models import Group, User
+import mptt
+from mptt.models import MPTTModel, TreeForeignKey
 from polymorphic.models import PolymorphicModel
 
 # Create your models here.
+TreeForeignKey(Group, on_delete=models.CASCADE, blank=True, null=True).contribute_to_class(Group, 'parent')
+models.PositiveIntegerField(default=0, editable=False, db_index=True).contribute_to_class(Group, 'level')
+models.PositiveIntegerField(default=0, editable=False, db_index=True).contribute_to_class(Group, 'lft')
+models.PositiveIntegerField(default=0, editable=False, db_index=True).contribute_to_class(Group, 'rght')
+models.PositiveIntegerField(default=0, editable=False, db_index=True).contribute_to_class(Group, 'tree_id')
+mptt.register(Group, order_insertion_by=['name'])
 
 # AIOT-Related 
 class Region(models.Model):
     nom = models.CharField(max_length=255, null=False)
 
+    def __str__(self):
+        return self.nom
+
 class Departement(models.Model):
-    departement = models.ForeignKey(Region, on_delete=models.CASCADE)
+    region = models.ForeignKey(Region, on_delete=models.CASCADE)
     nom = models.CharField(max_length=255, null=False)
+
+    def __str__(self):
+        return self.nom
 
 class Commune(models.Model):
     departement = models.ForeignKey(Departement, on_delete=models.CASCADE)
     nom = models.CharField(max_length=255, null=False)
     abbv = models.CharField(max_length=10, null=False)
 
+    def __str__(self):
+        return self.nom
+
 class AIOT(models.Model):
     commune = models.ForeignKey(Commune, on_delete=models.SET_NULL, null=True)
     code = models.CharField(max_length=255)
     nom = models.CharField(max_length=255)
+
+    def __str__(self):
+        return "{} [{}#{}]".format(
+            self.nom,
+            self.commune.abbv,
+            self.code[-4:]
+        )
 
 # Metadata models
 class MetadataGroup(models.Model):
@@ -59,21 +83,53 @@ class TrackerStatus(models.Model):
     nom = models.CharField(max_length=255)
 
 class Tracker(PolymorphicModel):
-    nom     = models.CharField(max_length=255)
-    status  = models.ForeignKey(TrackerStatus, on_delete=models.SET_NULL, null=True)
-    aiot    = models.ForeignKey(AIOT, on_delete=models.CASCADE, null=True)
+    nom         = models.CharField(max_length=255)
+    status      = models.ForeignKey(TrackerStatus, on_delete=models.SET_NULL, null=True)
+    aiot        = models.ForeignKey(AIOT, on_delete=models.CASCADE, null=True)
+    
+    responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    entite_responsable = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
+
+class TrackerInspectionType(models.Model):
+    nom = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.nom
 
 class TrackerInspection(Tracker):
-    pass
+    type = models.ForeignKey(TrackerInspectionType, on_delete=models.SET_NULL, null=True)
+
+class TrackerInstructionType(models.Model):
+    nom = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.nom
 
 class TrackerInstruction(Tracker):
-    pass
+    type = models.ForeignKey(TrackerInstructionType, on_delete=models.SET_NULL, null=True)
+
+class TrackerLog(PolymorphicModel):
+    tracker = models.ForeignKey(Tracker, on_delete=models.CASCADE, null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class TrackerActivityStream(TrackerLog):
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    verb = models.CharField(max_length=255)
+    target = models.CharField(max_length=255)
+
+class TrackerMessage(TrackerLog):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    message = models.TextField()
 
 # Cabinet file system
-class CabinetNode(TreeNode):
-    aiot = models.ForeignKey(AIOT, on_delete=models.SET_NULL, null=True)
+class CabinetNode(MPTTModel):
+    aiot     = models.ForeignKey(AIOT, on_delete=models.SET_NULL, null=True)
     document = models.ForeignKey(Document, on_delete=models.CASCADE, null=True)
-    nom = models.CharField(max_length=255)
+    nom      = models.CharField(max_length=255)
+    parent   = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+
+    class MPTTMeta:
+        order_insertion_by = ['nom']
 
     @staticmethod
     def new_document_node(document, parent):
