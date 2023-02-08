@@ -1,10 +1,21 @@
-from django.shortcuts import render
+from rest_framework.renderers import JSONRenderer, TemplateHTMLRenderer
+from rest_framework import viewsets
+
+from django.shortcuts import render, reverse
 from django_filters.views import FilterView
 from django_tables2.views import SingleTableMixin
-from django.views.generic import ListView, DetailView, FormView
+from django.views.generic import ListView, DetailView, FormView, CreateView
 from django.shortcuts import get_object_or_404
 
-from . import models, forms, signals, tables
+from . import models, forms, signals, tables, serializers
+
+class InspectionTrackerViewSet(viewsets.ModelViewSet):
+    queryset = models.InspectionTracker.objects.all()
+    serializer_class = serializers.InspectionTrackerSerializer
+
+class AiotViewSet(viewsets.ModelViewSet):
+    queryset = models.AIOT.objects.all()
+    serializer_class = serializers.AiotSerializer
 
 # Create your views here.
 def upload_new_document(request):
@@ -18,7 +29,7 @@ def upload_new_document(request):
     
     return render(request, 'ems/document/upload.html', {'form': form})
 
-class CabinetNewView(FormView):
+class CabinetNewView(CreateView):
     template_name = "ems/cabinets/new.html"
     form_class = forms.NewCabinetForm
 
@@ -38,10 +49,19 @@ class DocumentIndexView(SingleTableMixin, FilterView):
     template_name = "ems/documents/list.html"
 
 class InspectionTrackerIndexView(SingleTableMixin, FilterView):
-    table_class = tables.InspectionTrackerTable
-    model = models.TrackerInspection
-    template_name = "ems/inspections/trackers/list.html"
+    table_class     = tables.InspectionTrackerTable
+    model           = models.InspectionTracker
+    context_object_name = "trackers"
+    template_name   = "ems/inspections/trackers/list.html"
 
+class InspectionTrackerNewView(CreateView):
+    renderer_classes = (JSONRenderer, TemplateHTMLRenderer,)
+    template_name = "ems/inspections/trackers/new.html"
+    form_class = forms.NewInspectionTrackerForm
+    
+    def get_success_url(self):
+        return reverse('list-inspections-trackers')
+        
 def new_inspection_tracker(request):
     if request.method == 'POST':
         form = forms.NewInspectionTrackerForm(request.POST)

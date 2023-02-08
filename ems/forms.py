@@ -26,7 +26,7 @@ class NewCabinetForm(forms.ModelForm):
 
 class NewInspectionTrackerForm(forms.ModelForm):
     class Meta:
-        model = models.TrackerInspection
+        model = models.InspectionTracker
         fields = ['nom', 'aiot', 'status', 'responsable', 'entite_responsable', 'type']
 
 

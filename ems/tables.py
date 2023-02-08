@@ -7,4 +7,4 @@ class DocumentTable(tables.Table):
 
 class InspectionTrackerTable(tables.Table):
     class Meta:
-        model = models.TrackerInspection
+        model = models.InspectionTracker

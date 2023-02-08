@@ -84,30 +84,33 @@ class TrackerStatus(models.Model):
 
 class Tracker(PolymorphicModel):
     nom         = models.CharField(max_length=255)
-    status      = models.ForeignKey(TrackerStatus, on_delete=models.SET_NULL, null=True)
+    status      = models.ForeignKey(TrackerStatus, on_delete=models.SET_NULL, null=True, blank=True)
     aiot        = models.ForeignKey(AIOT, on_delete=models.CASCADE, null=True)
     
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     entite_responsable = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
 
-class TrackerInspectionType(models.Model):
+    def __str__(self):
+        return "{} - {}".format(self.nom, self.aiot)
+
+class InspectionTrackerType(models.Model):
     nom = models.CharField(max_length=255)
 
     def __str__(self):
         return self.nom
 
-class TrackerInspection(Tracker):
-    type = models.ForeignKey(TrackerInspectionType, on_delete=models.SET_NULL, null=True)
+class InspectionTracker(Tracker):
+    type = models.ForeignKey(InspectionTrackerType, on_delete=models.SET_NULL, null=True)
 
-class TrackerInstructionType(models.Model):
+class InstructionTrackerType(models.Model):
     nom = models.CharField(max_length=255)
 
     def __str__(self):
         return self.nom
 
-class TrackerInstruction(Tracker):
-    type = models.ForeignKey(TrackerInstructionType, on_delete=models.SET_NULL, null=True)
-
+class InstructionTracker(Tracker):
+    type = models.ForeignKey(InstructionTrackerType, on_delete=models.SET_NULL, null=True)
+    
 class TrackerLog(PolymorphicModel):
     tracker = models.ForeignKey(Tracker, on_delete=models.CASCADE, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
