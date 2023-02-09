@@ -1,0 +1,30 @@
+import { fileURLToPath, URL } from 'node:url'
+
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
+
+const replaceIndexToDjangoBase = () => {
+  return {
+    name: 'renameIndex',
+    enforce: 'post',
+    generateBundle(options, bundle) {
+      const indexHtml = bundle['index.html']
+      indexHtml.fileName = "../backend/templates/cagouille/_base_vue.html"
+    }
+  };
+};
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [vue(), vueJsx(), replaceIndexToDjangoBase()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
+  build: {
+    emptyOutDir: true,
+    outDir: "../static",
+  },
+})
