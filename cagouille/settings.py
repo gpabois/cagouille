@@ -26,7 +26,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -36,14 +35,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
+    'graphene_django',
     'bootstrap5',
     'mptt',
     'viewflow',
     'django_tables2',
     'django_filters',
     'polymorphic',
-    'backend'
+    'aiots',
+    'accounts',
+    'web'
 ]
 
 MIDDLEWARE = [
@@ -76,6 +77,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'cagouille.wsgi.application'
 
+
+GRAPHENE = {
+    "SCHEMA": "cagouille.schema.schema"
+}
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases

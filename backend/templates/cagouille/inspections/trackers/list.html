@@ -1,8 +1,0 @@
-{% extends 'ems/base.html' %}
-{% load i18n %} 
-{% load render_table from django_tables2 %}
-
-{% block content %}
-    <a href="{% url 'new-inspection-tracker' %}">{% translate "Nouveau" %}</a>
-    {% render_table trackers %}
-{% endblock %}

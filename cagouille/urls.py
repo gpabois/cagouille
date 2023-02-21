@@ -16,7 +16,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.static import static
+from graphene_django.views import GraphQLView
+from django.views.decorators.csrf import csrf_exempt
+from web.views import PrivateGraphQLView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('backend.urls'))
-] + static('assets/', document_root="static/assets")
+    path('accounts/', include('django.contrib.auth.urls')),
+    path("graphql", csrf_exempt(PrivateGraphQLView.as_view(graphiql=True))),
+] + static('assets/', document_root="static/assets") + [path('', include('web.urls'))]

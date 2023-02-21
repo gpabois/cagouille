@@ -10,7 +10,7 @@ const replaceIndexToDjangoBase = () => {
     enforce: 'post',
     generateBundle(options, bundle) {
       const indexHtml = bundle['index.html']
-      indexHtml.fileName = "../backend/templates/cagouille/_base_vue.html"
+      indexHtml.fileName = "../web/templates/web/base_vue.html"
     }
   };
 };
