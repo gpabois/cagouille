@@ -27,6 +27,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 # Application definition
+GEORISQUE_API_URL = 'https://www.georisques.gouv.fr/api/v1'
 
 INSTALLED_APPS = [
     'django.contrib.admin',

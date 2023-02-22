@@ -35,9 +35,20 @@ class Aiot(DjangoObjectType):
             'code': ['exact', 'icontains', 'istartswith'],
             'commune__nom': ['exact', 'icontains', 'istartswith'],
             'commune__departement__nom': ['exact', 'icontains', 'istartswith'],
-            'commune__departement__region__nom': ['exact', 'icontains', 'istartswith']
+            'commune__departement__region__nom': ['exact', 'icontains', 'istartswith'],
+            'rubriques_icpe__rubrique__code': ['exact', 'icontains', 'istartswith']
         }
         
+class RubriqueIcpeAiot(DjangoObjectType):
+    class Meta:
+        model = models.RubriqueIcpeAiot
+        interfaces = (relay.Node, )
+
+class RubriqueIcpe(DjangoObjectType):
+    class Meta:
+        model = models.RubriqueIcpe
+        interfaces = (relay.Node, )
+
 class Query(ObjectType):
     regions = DjangoFilterConnectionField(Region)
     departements = DjangoFilterConnectionField(Departement)

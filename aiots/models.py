@@ -97,6 +97,8 @@ class Aiot(models.Model):
     code = models.CharField(max_length=255)
     nom = models.CharField(max_length=255)
 
+    objects = AiotManager()
+
     class Meta:
         unique_together = [['code']]
 
@@ -136,5 +138,7 @@ class RubriqueIcpe(MPTTModel):
     libelle = models.TextField()
     description = models.TextField()
     
+    def __str__(self):
+        return self.code 
     class MPTTMeta:
         order_insertion_by = ['code']
