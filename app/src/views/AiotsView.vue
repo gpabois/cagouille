@@ -1,10 +1,16 @@
 <script setup lang="ts">
-async function loadMore(query) {
+import { useRouter } from 'vue-router'
+import query from '../graphql/VueAiots.js';
+import AutocompleteAiot from '../components/AutocompleteAiot.vue'
+
+const router = useRouter();
+
+async function loadMore(query: any, data: any) {
     await query.fetchMore({
         variables: {
-            cursor: query.data.aiots.pageInfo.endCursor
+            cursor: data.aiots.pageInfo.endCursor
         },
-        updateQuery: (prevResult, {fetchMoreResult}) => {
+        updateQuery: (prevResult: any, {fetchMoreResult}) => {
             const newEdges = fetchMoreResult.aiots.edges;
             const pageInfo = fetchMoreResult.aiots.pageInfo;
             return newEdges.length ? {
@@ -18,25 +24,24 @@ async function loadMore(query) {
         }
     })
 }
+
+function allerDetailAiot(id) {
+    if(id) {
+        router.push({
+            name: 'detail_aiot',
+            params: {
+                id
+            }
+        })
+    }
+}
+
 </script>
 
 <template>
     <h1>AIOTS</h1>
-    <ApolloQuery :query="gql => gql`
-        query RecupererAiots($cursor: String) {
-            aiots(after: $cursor) {
-                edges {
-                    node {
-                        id, nom, code, commune {nom, abbv, departement {nom, region {nom}}}
-                    }
-                },
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-            }
-        }    
-    `">
+    <AutocompleteAiot @input="allerDetailAiot" />
+    <ApolloQuery :query="query">
         <template v-slot="{ result: { loading, error, data }, query }">
             <div v-if="data">
                 <table class="table" v-if="data.aiots">
@@ -49,7 +54,7 @@ async function loadMore(query) {
                     </thead>
                     <tbody>
                         <tr v-for="edge in data.aiots.edges">
-                            <td>{{ edge.node.nom }}</td>
+                            <td><RouterLink :to="{name: 'detail_aiot', params: {id: edge.node.id}}">{{ edge.node.nom }}</RouterLink></td>
                             <td>{{ edge.node.code }}</td>
                             <td>{{ edge.node.commune.nom }}</td>
                             <td>{{ edge.node.commune.departement.nom }}</td>
@@ -57,8 +62,7 @@ async function loadMore(query) {
                         </tr>
                     </tbody>
                 </table>
-                <button class="btn btn-primary" @click="loadMore(query)" :disabled="!data.aiots.pageInfo.hasNextPage">Charger plus</button>
-
+                <button class="btn btn-primary" @click="loadMore(query, data)" :disabled="!data.aiots.pageInfo.hasNextPage">Charger plus</button>
             </div>
         </template>
     </ApolloQuery>
