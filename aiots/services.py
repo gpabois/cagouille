@@ -92,7 +92,7 @@ def synchroniser_avec_georisques(**filter):
         aiot.nom = aiot_data['raisonSociale']
         aiot.code = aiot_data['codeAIOT']
         aiot.commune = models.Commune.objects.filter(code_insee=aiot_data['codeInsee']).first()
-
+        aiot.save()
         # Synchronise les rubriques
         for rubrique_data in aiot_data["rubriques"]:
             rubrique = recuperer_rubrique_icpe(rubrique_data)
@@ -107,7 +107,7 @@ def synchroniser_avec_georisques(**filter):
             
             rubrique_icpe.save()
 
-        aiot.save()
+
         yield aiot
 
 
