@@ -1,8 +1,8 @@
 import gql from 'graphql-tag'
 
 export default gql`
-query RecupererSuivisInspections($cursor: String) {
-  suivisInspections(after: $cursor) {
+query RecupererSuivisInspections($cursor: String, $orderBy: String) {
+  suivisInspections(after: $cursor, orderBy: $orderBy) {
     edges {
       node {
         id, 

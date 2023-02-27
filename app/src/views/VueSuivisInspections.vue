@@ -1,63 +1,78 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import Table from '../components/Table.vue';
 import query from '../graphql/VueSuivisInspections.js';
+import { AUTOCOMPLETE_AIOT } from '../graphql/UtilsAiot.js';
+import { parseAndFormatDate, loadMoreMixin } from '../utils.js';
+import {ref} from 'vue';
+import { transform } from '@vue/compiler-core';
 
-const router = useRouter();
+const loadMore = loadMoreMixin("suiviInspections");
+const orderBy = ref('');
+const filter = ref({});
 
-async function loadMore(query: any, data: any) {
-    await query.fetchMore({
-        variables: {
-            cursor: data.suivisInspections.pageInfo.endCursor
+const columns = [{
+    id: 'nom',
+    name: 'Nom',
+    value: (row) => row.node.nom
+}, {
+    id: 'aiot',
+    name: 'Aiot',
+    value: (row) => row.node.aiot.nom,
+    filter: {
+        type: 'in',
+        values: {
+            type: 'query',
+            query: AUTOCOMPLETE_AIOT,
+            variables: (filter) => ({filter}),
+            elements: (data) => { data.aiots.edges }
         },
-        updateQuery: (prevResult: any, {fetchMoreResult}) => {
-            const newEdges = fetchMoreResult.suivisInspections.edges;
-            const pageInfo = fetchMoreResult.suivisInspections.pageInfo;
-            return newEdges.length ? {
-                ...prevResult,
-                suivisInspections: {
-                    ...prevResult.suivisInspections,
-                    edges: [...prevResult.suivisInspections.edges, ...newEdges],
-                    pageInfo,
-                }
-            } : prevResult;
-        }
-    })
+        transform: (edge) => ({
+            'id': edge.node.id,
+            'label': edge.node.nom
+        })
+        
+    }
+}, {
+    id: 'statut',
+    name: 'Statut',
+    value: (row) => row.node.statut.nom
+}, {
+    id: 'type',
+    name: 'Type',
+    value: (row) => row.node.type.nom
+}, {
+    id: 'datePrevisionnelle',
+    name: 'Date prévisionnelle',
+    sortable: true,
+    value: (row) => parseAndFormatDate(row.node.datePrevisionnelle)
+}]
+
+function sortUpdated(sorts) {
+    orderBy.value = sorts.map(s => `${s.sort == 'asc' ? '' : '-'}${s.id}`).join(',');
+}
+
+function filterUpdated(filters) {
+    console.log(filters)
 }
 </script>
 
 <template>
     <h1>Inspections</h1>
-    <ApolloQuery :query="query">
+    <ApolloQuery :query="query" :variables="{orderBy, ...filter}">
         <template v-slot="{ result: { loading, error, data }, query }">
-            <div v-if="data">
-                <table class="table" v-if="data.suivisInspections">
-                    <thead>
-                        <th>Nom</th>
-                        <th>AIOT</th>
-                        <th>Statut</th>
-                        <th>Type</th>
-                    </thead>
-                    <tbody>
-                        <tr v-for="edge in data.suivisInspections.edges">
-                            <td>
-                                {{ edge.node.nom }}
-                            </td>
-                            <td>
-                                <RouterLink :to="{name: 'detail_aiot', params: {id: edge.node.aiot.id}}">
-                                    {{ edge.node.aiot.nom }}
-                                </RouterLink>
-                            </td>
-                            <td>
-                                {{ edge.node.statut.nom }}
-                            </td>
-                            <td>
-                                {{ edge.node.type.nom }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div v-if="data">               
+                <Table 
+                    :rows="data.suivisInspections.edges" 
+                    :columns="columns" 
+                    @sort="sortUpdated"
+                    @filter="filterUpdated"
+                >
+                </Table>
                 <button class="btn btn-primary" @click="loadMore(query, data)" :disabled="!data.suivisInspections.pageInfo.hasNextPage">Charger plus</button>
             </div>
         </template>
     </ApolloQuery>
 </template>
+<style scoped>
+ revo-grid { height: 500px; } 
+</style>

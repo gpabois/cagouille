@@ -4,8 +4,7 @@ import { ref, defineEmits, defineProps } from 'vue'
 const props = defineProps([
     'query',
     'elements',
-    'label',
-    'id'
+    'transform'
 ])
 
 const filter = ref('');
@@ -13,17 +12,17 @@ const filterBuffer = ref ('');
 const displayResults = ref(false);
 const debounce = ref(false);
 
-const emit = defineEmits(['input'])
+const emit = defineEmits(['input']);
 
-function onSelected(e) {
+const onSelected = function (e) {
     filterBuffer.value = e.target.dataset["label"];
     displayResults.value = false;
     debounce.value = true;
-    emit('input', e.target.dataset["id"]);
-}
+    emit('input', {id: e.target.dataset["id"], label: e.target.dataset["label"]});
+};
 
-function onInputModified(e) {
-    emit('input', null)
+const onInputModified = function (_) {
+    emit('input', null);
     
     if(debounce.value) {
         debounce.value = false;
@@ -35,7 +34,10 @@ function onInputModified(e) {
         displayResults.value = true;
         filter.value = filterBuffer.value;
     }
-}
+};
+
+const id = (element) =>  props.transform(element).id;
+const label = (element) => props.transform(element).label;
 </script>
 
 <template>
@@ -46,12 +48,12 @@ function onInputModified(e) {
                 <ul class="list-group list-group-flush" 
                     v-if="displayResults && data && props.elements(data).length"
                 >
-                    <li class="list-group-item list-group-item-action" 
-                        :data-id="props.id(element)"
-                        :data-label="props.label(element)"
-                        v-for="element in props.elements(data)" 
+                    <li class="list-group-item list-group-item-action"
+                        v-for="element in props.elements(data)"  
+                        :data-id="id(element)"
+                        :data-label="label(element)"
                         @click="onSelected">
-                        {{ props.label(element) }}
+                        {{ label(element) }}
                     </li>
                 </ul>
             </template>

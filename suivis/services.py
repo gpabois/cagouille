@@ -6,12 +6,12 @@ from aiots import models as aiots_models
 
 import requests, itertools, time
 
-date_format = "%d/%m/%y"
+DATE_FORMAT = "%d/%m/%Y"
 
 def parse_date(date):
     try:
-        return datetime.strptime(date, date_format)
-    except ValueError:
+        return datetime.strptime(date, DATE_FORMAT)
+    except ValueError as e:
         return None
 
 def get_type_insp(nature):
