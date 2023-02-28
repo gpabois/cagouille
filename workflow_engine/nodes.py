@@ -5,7 +5,7 @@ class GoTo:
     def __call__(self, engine, flow, task):
         pass
 
-class BaseTaskType:
+class BaseNode:
     def __init__(self, **options):
         if 'enter' in options:
             self.enter = options['enter']
@@ -28,9 +28,9 @@ class BaseTaskType:
         if self.leave:
             self.leave(**input)
 
-class If(BaseTaskType):
+class If(BaseNode):
     def __init__(self, predicate, then, _else, **options):
-        BaseTaskType.__init__(self, **options)
+        super().__init__(self, **options)
         self.then = then
         self._else = _else
 
@@ -40,9 +40,9 @@ class If(BaseTaskType):
         else:
             return GoTo(self._else)
 
-class UserAction(BaseTaskType):
+class UserAction(BaseNode):
     def __init__(self, fn, next, **options):
-        BaseTaskType.__init__(self, **options)
+        super().__init__(**options)
         
         self.fn = fn
         self.next = next     

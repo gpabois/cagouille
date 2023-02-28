@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'graphene_plus',
     'bootstrap5',
     'mptt',
-    'joeflow',
+    'workflow_engine',
     'django_tables2',
     'django_filters',
     'polymorphic',
