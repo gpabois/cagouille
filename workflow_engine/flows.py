@@ -2,7 +2,7 @@ from .nodes  import BaseNode
 from .engine import ENGINE
 
 class WorkflowMeta(type):   
-    def __init__(cls, name, bases, attrs, abstract):
+    def __init__(cls, name, bases, attrs, abstract=False):
         super().__init__(name, bases, attrs)
         if not abstract:
             ENGINE.register(cls)
