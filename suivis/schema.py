@@ -49,7 +49,28 @@ class SuiviInspection(DjangoObjectType):
         interfaces = (relay.Node,)
         filterset_class = FiltreSuiviInspection
 
+
+class AjouterSuiviInspection(relay.ClientIDMutation):
+    class Input:
+        nom = String(required=True)
+        code = String(required=True)
+        commune_global_id = String(name="commune", required=True)
+    
+    suivi_inspection = Field(SuiviInspection)
+
+    @classmethod
+    def mutate_and_get_payload(cls, root, info, **input):
+        commune_id = from_global_id(input['commune_global_id'])
+        input['commune'] = models.Commune.objects.get(id=commune_id.id)
+        del input['commune_global_id']
+        aiot = models.Aiot(**input)
+        aiot.save()
+        return cls(aiot=aiot)
+
 class Query(ObjectType):
     status_suivis = DjangoFilterConnectionField(StatutSuivi)
     suivis_inspections = DjangoFilterConnectionField(SuiviInspection)
     types_inspections = DjangoFilterConnectionField(TypeInspection)
+
+class Mutation(ObjectType):
+    ajouter_suivi_inspection = AjouterSuiviInspection.Field()

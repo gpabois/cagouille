@@ -1,9 +1,19 @@
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.forms.mutation import DjangoModelFormMutation
-from graphene import relay, ObjectType, ID, Field, String, Int, Boolean, Mutation
+from graphene import relay, ObjectType, ID, Field, String, Int, Boolean, Mutation, Scalar
 from graphql_relay.node.node import from_global_id
 from . import models
+
+class GlobalID(Scalar):
+    serialize = coerce_int
+    parse_value = coerce_int
+
+    @staticmethod
+    def parse_literal(ast, _variables=None):
+        if isinstance(ast, IntValueNode):
+            return int(ast.value)
+        return Undefined
 
 class Region(DjangoObjectType):
     class Meta:
