@@ -2,18 +2,8 @@ from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene import relay, ObjectType, ID, Field, String, Int, Boolean, Mutation, Scalar
-from graphql_relay.node.node import from_global_id
+from graphene_plus import GlobalID
 from . import models
-
-class GlobalID(Scalar):
-    serialize = coerce_int
-    parse_value = coerce_int
-
-    @staticmethod
-    def parse_literal(ast, _variables=None):
-        if isinstance(ast, IntValueNode):
-            return int(ast.value)
-        return Undefined
 
 class Region(DjangoObjectType):
     class Meta:
@@ -54,15 +44,12 @@ class CreerAiot(relay.ClientIDMutation):
     class Input:
         nom = String(required=True)
         code = String(required=True)
-        commune_global_id = String(name="commune", required=True)
+        commune_id = GlobalID(name="commune", required=True)
     
     aiot = Field(Aiot)
 
     @classmethod
     def mutate_and_get_payload(cls, root, info, **input):
-        commune_id = from_global_id(input['commune_global_id'])
-        input['commune'] = models.Commune.objects.get(id=commune_id.id)
-        del input['commune_global_id']
         aiot = models.Aiot(**input)
         aiot.save()
         return cls(aiot=aiot)
@@ -71,27 +58,34 @@ class SupprimerAiot(Mutation):
     ok = Boolean()
 
     class Arguments:
-        id = ID()
+        id = GlobalID()
     
     @classmethod
     def mutate(cls, root, info, id):
-        id = from_global_id(id).id
         aiot = models.Aiot.objects.get(pk=id)
         aiot.delete()
         return cls(ok=True)
 
-
 class ModifierAiot(relay.ClientIDMutation):
     class Input:
         id = ID(required=True)
-        commune_id = ID()
+        commune_id = GlobalID(name="commune")
     
     aiot = Field(Aiot)
 
     @classmethod
     def mutate_and_get_payload(cls, root, info, **input):
         aiot = models.Aiot.objects.get(pk=input.id)
-
+        
+        del input['id']
+        
+        for k, v in input.items():
+            setattr(aiot, k, v)
+        
+        if input:
+            aiot.save()
+        
+        return cls(aiot=aiot)
 class RubriqueIcpeAiot(DjangoObjectType):
     class Meta:
         model = models.RubriqueIcpeAiot

@@ -35,11 +35,11 @@ const columns = [{
 }, {
     id: 'statut',
     name: 'Statut',
-    value: (row) => row.node.statut.nom
+    value: (row) => row.node.statut ? row.node.statut.nom : "-"
 }, {
     id: 'type',
     name: 'Type',
-    value: (row) => row.node.type.nom
+    value: (row) => row.node.type ? row.node.type.nom : "-"
 }, {
     id: 'datePrevisionnelle',
     name: 'Date prévisionnelle',
@@ -52,7 +52,7 @@ function sortUpdated(sorts) {
 }
 
 function filterUpdated(filters) {
-    console.log(filters)
+
 }
 </script>
 
