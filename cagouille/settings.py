@@ -36,12 +36,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_celery_results',
+    'workflow_engine',
+    'workflow_engine_tests',
     'graphene_django',
     'graphene_plus',
-    'bootstrap5',
     'mptt',
-    'workflow_engine',
-    'django_tables2',
     'django_filters',
     'polymorphic',
     'aiots',
@@ -80,6 +80,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'cagouille.wsgi.application'
 
+# Celery configuration
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
 
 GRAPHENE = {
     "SCHEMA": "cagouille.schema.schema"
@@ -136,6 +142,3 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Django tables 2
-DJANGO_TABLES2_TEMPLATE = "ems/table.html"

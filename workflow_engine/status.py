@@ -1,0 +1,7 @@
+STALL   = 'stall'
+READY   = 'ready'
+DONE    = 'done'
+CLOSED  = 'closed'
+INIT    = 'init'
+ABORTED = 'aborted'
+FAILED  = 'failed'

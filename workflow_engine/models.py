@@ -1,27 +1,60 @@
-from django.db                      import models
-from django.contrib.auth.models     import Group, User
+from django.db import models
 
 class Process(models.Model):
     flow_class = models.CharField(max_length=255)
-    status = models.CharField(choices=(
-        'init',
-        'running',
-        'aborted',
-        'failed'
-        'done'
+    status = models.CharField(max_length=20, default='init', choices=(
+        ('init', 'Initialised'),
+        ('running', 'Running'),
+        ('aborted', 'Aborted'),
+        ('failed', 'Failed'),
+        ('done', 'Done')
     ))
+
+    def __str__(self):
+        return "{}({})".format(self.flow_class, self.pk)
+
+    def aborted(self):
+        self.status = 'aborted'
+
+    def failed(self, error):
+        self.status = 'failed'
+        self.log = str(error)
+
+    def done(self):
+        self.status = 'done'
 
 class Task(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     step    = models.CharField(max_length=255)
-    status  = models.CharField(choices=(
-        'init',
-        'idling',
-        'aborted',
-        'failed',
-        'done'
+    status  = models.CharField(max_length=20, default='init', choices=(
+        ('init', 'Initalised'),
+        ('ready', 'Ready'),
+        ('stall', 'Stall'),
+        ('aborted', 'Aborted'),
+        ('failed', 'Failed'),
+        ('done', 'Done'),
+        ('closed', 'Closed')
     ))
+
+    def __str__(self):
+        return "{}::{}({}) [{}]".format(str(self.process), self.step, self.pk, self.status)
+
     log = models.TextField()
+    def ready(self):
+        self.status = 'ready'
+
+    def closed(self):
+        self.closed = 'closed'
+
+    def aborted(self):
+        self.status = 'aborted'
+
+    def failed(self, error):
+        self.status = 'failed'
+        self.log = str(error)
+
+    def done(self):
+        self.status = 'done'
 
 class WorkflowContext(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
