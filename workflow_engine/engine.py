@@ -21,8 +21,10 @@ class Engine:
 
         process = Process(flow_class=flow_class)
         process.save()
+        
         context.process = process
         context.save()
+
         return process, *self.spawn_task('start', process)
     
     def spawn_task(self, step, process):
@@ -34,12 +36,19 @@ class Engine:
         return task, activate.delay(task.id)
 
     def activate(self, task: Task, **input):       
+        from .nodes import node_activation
+
         try:
-            flow = self.flow(task.process.flow_class)
+            flow    = self.flow(task.process.flow_class)
             context = flow.context(task.process)
-            node = flow.node(task.step)
-           
-            return node(context=context, engine=self, task=task, process=task.process, **input)
+            node    = flow.node(task.step)
+            
+            with node_activation(task, self) as activation:
+                return node(
+                    context=context, 
+                    activation=activation,
+                    **input
+                )
 
         except Exception as e:
             task.failed(e)

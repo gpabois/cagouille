@@ -18,6 +18,7 @@ class SelfObject:
                 setattr(target, name, value(source))
         
         return target
+
 Self = SelfObject()
 
 class WorkflowMeta(type):   
@@ -27,6 +28,10 @@ class WorkflowMeta(type):
         for key, value in attrs.items():
             if isinstance(value, BaseNode):
                 cls.steps[key] = Self.resolve(value, cls)  
+                value.flow = cls
+                value.name = key
+
+        cls.name = name
 
         if not abstract:
             ENGINE.register(cls)

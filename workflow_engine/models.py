@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Process(models.Model):
     flow_class = models.CharField(max_length=255)
@@ -24,6 +25,7 @@ class Process(models.Model):
         self.status = 'done'
 
 class Task(models.Model):
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     process = models.ForeignKey(Process, on_delete=models.CASCADE)
     step    = models.CharField(max_length=255)
     status  = models.CharField(max_length=20, default='init', choices=(

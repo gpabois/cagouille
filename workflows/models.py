@@ -2,14 +2,32 @@ from django.db import models
 from workflow_engine import WorkflowContext
 # Create your models here.
 
-class ContexteRvat(WorkflowContext):
-    verifie         = models.BooleanField(default=False)
-    approuve        = models.BooleanField(default=False)
-    approuve_spr    = models.BooleanField(default=False)
+class Rvat(WorkflowContext):
+    rvat_au_regional        = models.BooleanField(default=False)
+    
+    verifie                  = models.BooleanField(default=False)
+    date_limite_verification = models.DateField(null=True)
+    commentaire_verificateur = models.TextField(null=True)
+    
+    approuve                = models.BooleanField(default=False)
+    date_limite_approbation = models.DateField(null=True)
+    commentaire_approbateur = models.TextField()
+    
+    approuve_regional                = models.BooleanField(default=False)
+    date_limite_approbation_regional = models.DateField(null=True)
+    commentaire_regional             = models.TextField()
 
-    redacteur       = models.ForeignKey(User)
-    verificateur    = models.ForeignKey(Group, on_delete=models.CASCADE)
-    approbateur     = models.ForeignKey(Group, on_delete=models.CASCADE)
-    administratif   = models.ForeignKey(Group, on_delete=models.CASCADE)
+    redacteur = models.ForeignKey(User)
+    verificateur = models.ForeignKey(Group, on_delete=models.CASCADE)
+    approbateur = models.ForeignKey(Group, on_delete=models.CASCADE)
+
+    administratif = models.ForeignKey(Group, on_delete=models.CASCADE)
 
     aiot = models.ForeignKey(aiots_models.Aiot, null=True, related_name="rvats")
+    
+    uri_travail = models.CharField(max_length=255)
+    uri_travail_regional = models.CharField(max_length=255)
+    uri_definitif = models.CharField(max_length=255)
+    
+    reference_regional = models.CharField(max_length=255, null=True)
+    reference = models.CharField(max_length=255)
