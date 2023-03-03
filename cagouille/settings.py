@@ -97,8 +97,13 @@ GRAPHENE = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'TEST': {
+            'NAME': 'test_cagouille',
+            'USER': 'test_cagouille',
+        },
+        'HOST': 'localhost',
+        'PORT': '',
     }
 }
 
