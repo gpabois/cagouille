@@ -1,21 +1,20 @@
 from workflow_engine.flows import Workflow, Self
 from workflow_engine import nodes
 from .models import SimpleContext
+from .forms import SimpleForm
 
 class SimpleFlow(Workflow):
     context_class = SimpleContext
 
-    start = nodes.UserAction(Self.fn_start, next='check_approval')
-    check_approval = nodes.If(Self.fn_check_approval, sthen='approve', selse='reject')
+    start = nodes.UserAction(
+        SimpleForm, 
+        next='check_approval'
+    )
+    
+    check_approval = nodes.If(Self.fn_check_approval, 'approve', 'reject')
     approve = nodes.Job(Self.fn_approve, next='end')
     reject = nodes.Job(Self.fn_reject, next='end')
-
-    @staticmethod
-    def fn_start(decision, context, approval):
-        context.approval_decision = approval
-        context.save()
-        decision.valid()
-    
+   
     @staticmethod
     def fn_check_approval(context, **kwargs):
         return context.approval_decision

@@ -82,6 +82,7 @@ WSGI_APPLICATION = 'cagouille.wsgi.application'
 
 # Celery configuration
 CELERY_TASK_ALWAYS_EAGER = False
+CELERY_TIMEZONE = "Australia/Tasmania"
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
 CELERY_TASK_TRACK_STARTED = True

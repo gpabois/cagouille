@@ -1,5 +1,6 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
+from celery.result import AsyncResult
 
 class Process(models.Model):
     flow_class = models.CharField(max_length=255)
@@ -10,6 +11,10 @@ class Process(models.Model):
         ('failed', 'Failed'),
         ('done', 'Done')
     ))
+
+    def get_context(self):
+        from .engine import ENGINE
+        return ENGINE.context(self)
 
     def __str__(self):
         return "{}({})".format(self.flow_class, self.pk)
@@ -25,23 +30,32 @@ class Process(models.Model):
         self.status = 'done'
 
 class Task(models.Model):
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    process = models.ForeignKey(Process, on_delete=models.CASCADE)
-    step    = models.CharField(max_length=255)
-    status  = models.CharField(max_length=20, default='init', choices=(
+    assigned_to_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    assigned_to_group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
+    
+    process     = models.ForeignKey(Process, on_delete=models.CASCADE, related_name="tasks")
+    subprocess  = models.ForeignKey(Process, on_delete=models.SET_NULL, null=True, related_name="supratasks")
+
+    step        = models.CharField(max_length=255)
+    status      = models.CharField(max_length=20, default='init', choices=(
         ('init', 'Initalised'),
         ('ready', 'Ready'),
         ('stall', 'Stall'),
+        ('submitted', 'Submitted'),
         ('aborted', 'Aborted'),
         ('failed', 'Failed'),
         ('done', 'Done'),
         ('closed', 'Closed')
     ))
 
+    current_job = models.CharField(max_length=255, null=True)
+    previous = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, related_name="followings", blank=True)
+
     def __str__(self):
         return "{}::{}({}) [{}]".format(str(self.process), self.step, self.pk, self.status)
 
     log = models.TextField()
+    
     def ready(self):
         self.status = 'ready'
 
@@ -57,6 +71,19 @@ class Task(models.Model):
 
     def done(self):
         self.status = 'done'
+
+    def wait(self, *args, **kwargs):
+        from django_celery_results.models import TaskResult
+        
+        if self.current_job is not None:
+            result = AsyncResult(self.current_job)
+            result.get(*args, **kwargs)     
+            self.refresh_from_db()
+            return result
+        
+        else:
+            self.refresh_from_db()
+            return None
 
 class WorkflowContext(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE)

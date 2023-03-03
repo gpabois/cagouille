@@ -1,15 +1,17 @@
-from django import models, forms
+from django.db import models
+from django import forms
 from .models import Task
 from .engine import ENGINE
 
 class ContextForm(forms.ModelForm):
-    task = models.ModelChoiceField(queryset=Task.objects.all())
+    task = forms.ModelChoiceField(queryset=Task.objects.all())
     
-    def _get_context(self):
-        return self.meta.model.objects.get(process=self.cleaned_data['task'].process)
+    def get_context(self):
+        task = self.cleaned_data['task']
+        return self.Meta.model.objects.get(process=task.process)
 
-    def save(self, *args, **kwargs):
-        self.pk = self._get_context().id
-        return super().save(*args, **kwargs)
+    def clean(self, *args, **kwargs):
+        self.instance = self.get_context()
+        return super().clean(*args, **kwargs)
         
         

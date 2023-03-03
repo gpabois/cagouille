@@ -30,6 +30,7 @@ class WorkflowMeta(type):
                 cls.steps[key] = Self.resolve(value, cls)  
                 value.flow = cls
                 value.name = key
+                value.on_paired_with_flow(cls)
 
         cls.name = name
 

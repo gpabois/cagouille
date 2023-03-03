@@ -11,9 +11,12 @@ class Engine:
 
     def flow(self, flow_class):
         return self.flows[flow_class]
+
+    def context(self, process):
+        flow = self.flow(process.flow_class)
+        return flow.context(process)        
     
-    @transaction.atomic
-    def spawn_process(self, flow, context):
+    def spawn_process(self, flow, context, **options):
         if flow.__name__ not in self.flows:
             self.register(flow)
 
@@ -25,29 +28,63 @@ class Engine:
         context.process = process
         context.save()
 
-        return process, *self.spawn_task('start', process)
+        return process, self.spawn_task('start', process, **options)
     
-    def spawn_task(self, step, process):
+    def spawn_task(self, step, process, previous=None, **options):
         from .tasks import activate
+        
         flow = self.flow(process.flow_class)
         node = flow.node(step)
+        
         task = Task(process=process, step=step)
+        task.previous = previous
         task.save()
-        return task, activate.delay(task.id)
+        
+        if "eager" in options:
+            activate(task.id, **options)
+        
+        else:
+            job = activate.delay(task.id, **options)
+            task.current_job = job.task_id
+            task.save()
+            job.forget()
+            
+        return task
 
-    def activate(self, task: Task, **input):       
+    def submit(self, task, data, **options):
         from .nodes import node_activation
+        
+        try:
+            flow    = self.flow(task.process.flow_class)
+            context = flow.context(task.process)
+            node    = flow.node(task.step)
+            data['task'] = task
 
+            with node_activation(task, self, **options) as activation:
+                return node.submit(
+                    activation=activation,
+                    data=data
+                )
+
+        except Exception as e:
+            task.failed(e)
+            task.process.failed(e)
+            task.save()
+            task.process.save()     
+            raise e
+
+    def activate(self, task: Task, **options):       
+        from .nodes import node_activation
         try:
             flow    = self.flow(task.process.flow_class)
             context = flow.context(task.process)
             node    = flow.node(task.step)
             
-            with node_activation(task, self) as activation:
-                return node(
+            with node_activation(task, self, **options) as activation:
+                node(
                     context=context, 
                     activation=activation,
-                    **input
+                    **options
                 )
 
         except Exception as e:

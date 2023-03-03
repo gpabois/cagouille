@@ -4,8 +4,8 @@ from . import signals
 from contextlib import contextmanager
 
 @contextmanager
-def node_activation(task, engine):
-    activation = NodeActivation(task, engine)
+def node_activation(task, engine, **options):
+    activation = NodeActivation(task, engine, **options)
 
     try:
         yield activation
@@ -18,12 +18,13 @@ def node_activation(task, engine):
         activation.commit()
 
 class NodeActivation:
-    def __init__(self, task, engine):
+    def __init__(self, task, engine, **options):
         self.engine = engine
         self.task = task
-
         self.act_result = None
-        self.nexts = []
+        self._reactivate = False
+        self._tasks = []
+        self.options = options
 
     def __iter__(self):
         return iter(self.nexts)
@@ -32,23 +33,33 @@ class NodeActivation:
         self.task.save()
         self.task.process.save()
 
-    def get_next_by_task(self, task):
-        return next(filter(lambda n: n[0].id == task.id, self.nexts))
+        if self.task.status in (READY, SUBMITTED):
+            if "eager" in self.options:
+                activate(
+                    self.task.id, 
+                    **self.options
+                )
+            else:
+                job = activate.delay(
+                    self.task.id, 
+                    **self.options
+                ) 
+                self.task.current_job = job.task_id
+                self.task.save()
+                job.forget()
 
-    def reactivate(self):
-        self.nexts.append(
-            (self.task, activate.delay(self.task.id))
-        )
-
-    def set_activation_result(self, result):
-        self.act_result = result
-    
-    def get_activation_result(self):
-        return self.act_result
+        for spawn in self._tasks:
+            spawn()
 
     def spawn_task(self, step):
-        task, job = self.engine.spawn_task(step, self.task.process)
-        self.nexts.append((task, job))
+        self._tasks.append(
+            lambda: self.engine.spawn_task(
+                step, 
+                self.task.process, 
+                previous=self.task,
+                **self.options
+            )
+        )
 
     def close_workflow(self):
         self.task.process.done()
@@ -66,6 +77,9 @@ class NodeActivation:
     def is_running(self):
         return self.task.status == READY
     
+    def submitted(self):
+        self.task.status = SUBMITTED
+
     def done(self):
         self.task.status = DONE
     
@@ -99,28 +113,34 @@ class BaseNode:
         else:
             self.leave = None
 
+    def on_paired_with_flow(self, flow_class):
+        pass
+
     def __call__(self, activation, **input):
         if activation.is_entering():
             self.on_entering(activation, **input)
             activation.ready()          
 
         if activation.can_be_activated():
-            self.activate(activation=activation, **input)
+            self.activate(
+                activation=activation, 
+                **input
+            )
 
         if activation.is_leaving():
-            self.on_leaving(**input)
+            self.on_leaving(activation, **input)
             activation.close()
 
         return activation
 
     def on_entering(self, activation, **input):
-        signals.entering_task(sender=self.__class__, task=activation.task)
+        signals.entering_task.send(sender=self.__class__, task=activation.task)
         
         if self.enter:
             self.enter(**input)
 
-    def on_leaving(self, **input):
-        signals.leaving_task(sender=self.__class__, task=activation.task)
+    def on_leaving(self, activation, **input):
+        signals.leaving_task.send(sender=self.__class__, task=activation.task)
         if self.leave:
             self.leave(**input)
 
@@ -146,27 +166,27 @@ class Job(BaseNode):
         self.next = next
     
     def activate(self, activation, **input):
-        activation.set_activation_result(self.fn(**input))
+        self.fn(**input)
         activation.spawn_task(self.next)
         activation.done()
 
-class UserActionResult:
-    def __init__(self):
-        self.ok = False
-        self.result = None
-    
-    def valid(self, result=None):
-        self.ok = True
-        self.result = result
-    
-    def invalid(self, result=None):
-        self.ok = False
-        self.result = result
-
-class UserActionForm(BaseNode):
+class UserAction(BaseNode):
     def __init__(self, form_class, next, **options):
-       self.form_class = form_class
-       self.next = next
+        super().__init__(**options)
+        self.form_class = form_class
+        self.next = next
+
+        if "mutation" in options and options['mutation']:
+            self.add_to_mutation = True
+        else:
+            self.add_to_mutation = False       
+
+    def on_paired_with_flow(self, flow_class):
+        return
+        from .schema import Mutation
+        self.flow_class = flow_class
+        mutation_field = self.as_mutation()
+        setattr(Mutation, mutation_field.name, mutation_field.Field())
        
     def __create_meta_mutation(self):
         attrs = {}
@@ -179,14 +199,8 @@ class UserActionForm(BaseNode):
     @staticmethod
     def __perform_mutate(return_name, return_field):
         def wrapper(self, form, info):
-            context = form.save()
-            # Change task status
             task = form.cleaned_data['task']
-            task.status = SUBMITTED
-            task.save()
-            # Fire and forget
-            activate(form.cleaned_data['task'].id)
-            # Return mutation node
+            context = submit(context, form.cleaned_data)
             return self.cls(**{
                 return_name: return_field(context)
             })
@@ -198,56 +212,36 @@ class UserActionForm(BaseNode):
 
         type_name = "".join(list(map(lambda n: n.capitalize(), [self.flow.name, self.name])))
         
-        return type(
+        mutation_type = type(
             type_name, 
             (DjangoModelFormMutation,), 
             {
+                'name': "_".join([self.flow.name, self.name]),
                 'Meta': self._create_meta_mutation(),
                 return_name: return_field,
                 'perform_mutate': UserActionForm.__perform_mutate()
             }
         )
 
-    def submit(self, **data):
+        return mutation_type
+
+    def submit(self, activation, data):
         form = self.form_class(data)
         
         if form.is_valid():
-            return form.save()
+            context = form.save()
+            activation.submitted()
+            return context
         else:
-            return None
+            return form
 
     def activate(self, activation, **input):
         if activation.task.status == READY:
             activation.task.status = STALL
+        
         elif activation.task.status == SUBMITTED:
             activation.done()
             activation.spawn_task(self.next)     
-
-class UserAction(BaseNode):
-    def __init__(self, fn, next, **options):
-        super().__init__(**options)
-        
-        if 'form_class' in options:
-            self.form_class = form_class
-
-        self.fn = fn
-        self.next = next     
-
-
-    def activate(self, activation, **input):
-        if activation.task.status == READY:
-            activation.task.status = STALL
-        else:
-            decision = UserActionResult()
-            
-            activation.set_activation_result(
-                self.fn(decision=decision, **input)
-            )
-            
-            if decision.ok:
-                activation.done()
-                activation.spawn_task(self.next)
-
 
 class End(BaseNode):
     def activate(self, activation, **input):
