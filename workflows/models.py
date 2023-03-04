@@ -5,7 +5,7 @@ from aiots.models import Aiot
 # Create your models here.
 
 class Rvat(WorkflowContext):
-    nom = models.CharField(max_length=255)
+    nom = models.CharField(max_length=255, null=True)
     rvat_au_regional = models.BooleanField(default=False)
     
     verifie = models.BooleanField(default=False)

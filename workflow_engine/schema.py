@@ -4,17 +4,36 @@ from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene import relay, ObjectType, ID, Field, String, Int, Boolean, Mutation, Scalar
 from graphene_plus import GlobalID
+from django.db.models import Q
+
 from . import models
 
 class Task(DjangoObjectType):
     class Meta:
-        model = models.Process
-        filter_fields = ('status', )
+        model = models.Task
+        filter_fields = ('id', 'status', 'process')
         interfaces = (relay.Node,)
+
+class MyTask(DjangoObjectType):
+    class Meta:
+        model = models.Task
+        interfaces = (relay.Node, )
+        filter_fields = '__all__'
+
+    @classmethod
+    def get_queryset(cls, info, id):
+        if info.context.user.is_anonymous:
+            return []
+        else:
+            return Task.objects.filter(
+                Q(assigned_to_user=info.context.user) | Q(
+                    assigned_to_group__user=info.context.user
+                )
+            )
 
 class Process(DjangoObjectType):
     class Meta:
-        model = models.Task
+        model = models.Process
         filter_fields = ('status', )
         interfaces = (relay.Node,)
 
@@ -74,6 +93,7 @@ class UserActionMutation:
 class Query(ObjectType):
     processes = DjangoFilterConnectionField(Process)
     tasks = DjangoFilterConnectionField(Task)
+    my_tasks = DjangoFilterConnectionField(MyTask)
     process = relay.Node.Field(Process)
     task = relay.Node.Field(Task)
 
