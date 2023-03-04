@@ -1,20 +1,21 @@
-from django import models, forms
+from django     import forms
 from .models import Rvat
 
 class FormulairePreparationRvat(forms.ModelForm):
    class Meta:
         model = Rvat
         fields = (
+            'aiot',
+            
             'verificateur',
-            'redacteur',
             'approbateur',
             'administratif',
-            'aiot',
+
             'uri_travail',
             'date_limite_verification',
             'date_limite_approbation',
             'date_limite_approbation_regional',
-            'rvat_au_niveau_regional',
+            'rvat_au_regional',
         )  
 
 class FormulaireVerificateurRvat(forms.ModelForm):

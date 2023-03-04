@@ -1,7 +1,7 @@
-from django.db import models
-from django import forms
-from .models import Task
-from .engine import ENGINE
+from django.db  import models
+from django     import forms
+from .models    import Task
+from .engine    import ENGINE
 
 class ContextForm(forms.ModelForm):
     task = forms.ModelChoiceField(queryset=Task.objects.all())

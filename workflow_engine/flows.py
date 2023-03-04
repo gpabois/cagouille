@@ -32,8 +32,6 @@ class WorkflowMeta(type):
                 value.name = key
                 value.on_paired_with_flow(cls)
 
-        cls.name = name
-
         if not abstract:
             ENGINE.register(cls)
         

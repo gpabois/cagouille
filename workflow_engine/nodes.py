@@ -179,62 +179,24 @@ class UserAction(BaseNode):
         super().__init__(**options)
         self.form_class = form_class
         self.next = next
-
-        if "mutation" in options and options['mutation']:
-            self.add_to_mutation = True
-        else:
-            self.add_to_mutation = False       
+        self.plugins = [] if "plugins" not in options else options['plugins']  
 
     def on_paired_with_flow(self, flow_class):
-        return
-        from .schema import Mutation
         self.flow_class = flow_class
-        mutation_field = self.as_mutation()
-        setattr(Mutation, mutation_field.name, mutation_field.Field())
-       
-    def __create_meta_mutation(self):
-        attrs = {}
-        
-        if getattr(self, 'form_class'):
-            attrs['form_class'] = self.form_class
 
-        return type("Meta", (), attrs)
+        for plugin in self.plugins:
+            plugin(self)
 
-    @staticmethod
-    def __perform_mutate(return_name, return_field):
-        def wrapper(self, form, info):
-            task = form.cleaned_data['task']
-            context = submit(context, form.cleaned_data)
-            return self.cls(**{
-                return_name: return_field(context)
-            })
-
-        return wrapper
-
-    def as_mutation(self, return_name, return_field):
-        from graphene_django import DjangoModelFormMutation
-
-        type_name = "".join(list(map(lambda n: n.capitalize(), [self.flow.name, self.name])))
-        
-        mutation_type = type(
-            type_name, 
-            (DjangoModelFormMutation,), 
-            {
-                'name': "_".join([self.flow.name, self.name]),
-                'Meta': self._create_meta_mutation(),
-                return_name: return_field,
-                'perform_mutate': UserActionForm.__perform_mutate()
-            }
-        )
-
-        return mutation_type
-
-    def submit(self, activation, data):
+    def submit(self, activation, data, **options):
         form = self.form_class(data)
         
         if form.is_valid():
             context = form.save()
             activation.submitted()
+            
+            if 'user' in options:
+                activation.task.assigned_to = options['user']
+
             return context
         else:
             return form

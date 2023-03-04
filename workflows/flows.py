@@ -1,39 +1,51 @@
 from workflow_engine.flows import Workflow, Self
 from workflow_engine import nodes
+from workflow_engine.schema import UserActionMutation
 
 
 from .models import Rvat
+from . import schema
 from . import forms
 from . import signals
 
 class RvatFlow(Workflow):
+    name = 'rvat'
     context_class=Rvat
 
     start = nodes.UserAction(
-        Self.f_start, 
+        forms.FormulairePreparationRvat,
         next="verifier", 
-        form_class=forms.FormulairePreparationRvat
+        plugins=[
+            UserActionMutation('rvat', schema.Rvat)
+        ]
     )
 
     verifier = nodes.UserAction(
-        Self.f_verifier, 
+        forms.FormulaireVerificateurRvat,
         next="statuer_verification",
         enter=Self.enter_verification,
-        form_class=forms.FormulaireVerificateurRvat
+        plugins=[
+            UserActionMutation('rvat', schema.Rvat)
+        ]
     )
 
     statuer_verification = nodes.If(Self.statuer_verification, "approuver", "correction_verification")
     correction_verification = nodes.UserAction(
-        Self.f_start, 
+        forms.FormulairePreparationRvat,
         next="verifier", 
-        enter=Self.enter_correction_verification
+        enter=Self.enter_correction_verification,
+        plugins=[
+            UserActionMutation('rvat', schema.Rvat)
+        ]
     )
     
     approuver = nodes.UserAction(
-        Self.f_approuver, 
+        forms.FormulaireApprobateurRvat,
         enter=Self.enter_approbation,
         next="statuer_approbation",
-        form_class=forms.FormulaireApprobateurRvat
+        plugins=[
+            UserActionMutation('rvat', schema.Rvat)
+        ]
     )
     statuer_approbation = nodes.If(Self.f_statuer_verification, "approuver", "correction_verification")
     correction_approbation = nodes.UserAction(Self.f_start, next="verifier", enter=Self.enter_correction_verification)
@@ -50,7 +62,7 @@ class RvatFlow(Workflow):
 
     @staticmethod
     def enter_verification(activation, context, **input):
-        activation.task.assigned_to = context.verificateur.user_set.first()
+        activation.task.assigned_to_group = context.verificateur
         signals.rvat_a_verifier(sender=RvatFlow, task=activation.task)
     
     @staticmethod
@@ -64,6 +76,11 @@ class RvatFlow(Workflow):
     @staticmethod
     def f_approuver(activation, context, **input):
         pass
+
+    @staticmethod
+    def enter_approbation(activation, context, **input):
+        activation.task.assigned_to_group = context.approbateur
+        signals.rvat_a_approuver(sender=RvatFlow, task=activation.task)
 
 
 

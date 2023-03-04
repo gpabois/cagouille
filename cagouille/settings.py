@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_celery_results',
     'workflow_engine',
-    'workflow_engine_tests',
     'graphene_django',
     'graphene_plus',
     'mptt',
@@ -48,6 +47,7 @@ INSTALLED_APPS = [
     'aiots',
     'suivis',
     'accounts',
+    'workflows',
     'web'
 ]
 
