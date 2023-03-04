@@ -2,6 +2,7 @@ from .tasks import activate
 from .status import READY, INIT, DONE, CLOSED, STALL, FAILED, ABORTED, SUBMITTED
 from . import signals
 from contextlib import contextmanager
+from django.db import transaction
 
 @contextmanager
 def node_activation(task, engine, **options):
@@ -40,13 +41,16 @@ class NodeActivation:
                     **self.options
                 )
             else:
-                job = activate.delay(
-                    self.task.id, 
-                    **self.options
-                ) 
-                self.task.current_job = job.task_id
-                self.task.save()
-                job.forget()
+                def on_commit():
+                    job = activate.delay(
+                        self.task.id, 
+                        **self.options
+                    ) 
+                    self.task.current_job = job.task_id
+                    self.task.save()
+                    job.forget()
+                
+                transaction.on_commit(on_commit)
 
         for spawn in self._tasks:
             spawn()
@@ -62,8 +66,8 @@ class NodeActivation:
         )
 
     def close_workflow(self):
-        self.task.process.done()
         self.task.done()
+        self.task.process.done()
 
     def can_be_activated(self):
         return self.task.status in (READY, STALL, SUBMITTED)

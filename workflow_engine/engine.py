@@ -44,10 +44,13 @@ class Engine:
             activate(task.id, **options)
         
         else:
-            job = activate.delay(task.id, **options)
-            task.current_job = job.task_id
-            task.save()
-            job.forget()
+            def on_commit():
+                job = activate.delay(task.id, **options)
+                task.current_job = job.task_id
+                task.save()
+                job.forget()
+
+            transaction.on_commit(on_commit)
             
         return task
 
@@ -68,9 +71,9 @@ class Engine:
 
         except Exception as e:
             task.failed(e)
-            task.process.failed(e)
             task.save()
-            task.process.save()     
+            task.process.failed(e)
+            task.process.save()
             raise e
 
     def activate(self, task: Task, **options):       
@@ -90,10 +93,8 @@ class Engine:
         except Exception as e:
             task.failed(e)
             task.process.failed(e)
-            raise e
-        
-        finally:
             task.save()
             task.process.save()
+            raise e
 
 ENGINE = Engine()

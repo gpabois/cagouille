@@ -8,7 +8,7 @@ logger = get_task_logger(__name__)
 @shared_task
 def activate(task_id, **options):
     logger.info("Activating task {}".format(str(task_id)))
-    task = Task.objects.get(pk=task_id)
+    task = Task.objects.get(id=int(task_id))
     return ENGINE.activate(task, **options)
 
 def submit(task, data, **options):
