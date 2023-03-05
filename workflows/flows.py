@@ -10,7 +10,6 @@ def poursuivre(etape):
         return not getattr(context, etape)
     return wrapper
 
-
 class Rvat(Workflow):
     name = 'rvat'
     context_class=models.Rvat

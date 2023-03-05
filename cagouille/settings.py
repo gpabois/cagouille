@@ -90,7 +90,10 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
 
 GRAPHENE = {
-    "SCHEMA": "cagouille.schema.schema"
+    "SCHEMA": "cagouille.schema.schema",
+    'MIDDLEWARE': [
+        'graphene_django.debug.DjangoDebugMiddleware',
+    ]
 }
 
 # Database

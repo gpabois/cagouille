@@ -1,5 +1,5 @@
 import graphene
-from graphene import ObjectType, Field, Mutation, relay
+from graphene import ObjectType, Field, Mutation, relay, String
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
@@ -46,17 +46,21 @@ def __create_mutation(flow):
 
         process = Field(Process)
         task = Field(Task)
+        error = String()
 
         @classmethod
         def mutate(cls, root, info, id):
-            process, task = tasks.spawn_flow(flow, user=info.context.user)
-            return cls(process=process, task=task)
+            try:
+                process, task = tasks.spawn_flow(flow, user=info.context.user)
+                return cls(process=process, task=task)
+            except Exception as e:
+                return cls(error=str(e))
 
     return CreateFlow
 
 def flow_mutation(flow, context_type):
     fields = {
-        'create_flow': __create_mutation(flow).Field()
+        'create': __create_mutation(flow).Field()
     }
     
     for step, node in flow.steps.items():

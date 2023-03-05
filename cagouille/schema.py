@@ -9,10 +9,13 @@ from workflow_engine.schema import Query as WorkflowEngineQuery
 from workflows.schema import Mutation as WorkflowsMutation
 from workflows.schema import Query as WorkflowsQuery
 
+from graphene_django.debug import DjangoDebug
+
+
 class Query(AiotQuery, SuivisQuery, AccountsQuery, WorkflowEngineQuery, WorkflowsQuery):
-    pass
+    debug = graphene.Field(DjangoDebug, name='debug')
 
 class Mutation(AiotMutation, SuivisMutation, WorkflowEngineMutation, WorkflowsMutation):
-    pass
+    debug = graphene.Field(DjangoDebug, name='debug')
 
 schema = graphene.Schema(query=Query, mutation=Mutation)
