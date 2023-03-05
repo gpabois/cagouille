@@ -163,6 +163,21 @@ class If(BaseNode):
 
         activation.done()
 
+class Branch(BaseNode):
+    def __init__(self, default, **branches):
+        self.default = default
+        self.branches = branches
+    
+    def activate(self, activation, **input):
+        for branch, predicate in self.branches.items():
+            if predicate(**input):
+                activation.spawn_task(branch)
+                activation.done()
+                return
+        
+        activation.spawn_task(self.default)
+        activation.done()
+
 class Job(BaseNode):
     def __init__(self, fn, next, **options):
         super().__init__(**options)

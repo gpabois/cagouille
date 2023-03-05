@@ -44,6 +44,13 @@ class Workflow(metaclass=WorkflowMeta, abstract=True):
     }
 
     @classmethod
+    def get_name(cls):
+        if hasattr(cls, 'name'):
+            return getattr(cls, 'name')
+        else:
+            return cls.__name__
+            
+    @classmethod
     def node(cls, step):
         return cls.steps[step]
 

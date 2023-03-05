@@ -1,86 +1,74 @@
 from workflow_engine.flows import Workflow, Self
 from workflow_engine import nodes
-from workflow_engine.schema import UserActionMutation
 
-
-from .models import Rvat
-from . import schema
+from . import models
 from . import forms
 from . import signals
 
-class RvatFlow(Workflow):
+def poursuivre(etape):
+    def wrapper(activation, context, **kwargs):
+        return not getattr(context, etape)
+    return wrapper
+
+
+class Rvat(Workflow):
     name = 'rvat'
-    context_class=Rvat
+    context_class=models.Rvat
 
     start = nodes.UserAction(
         forms.FormulairePreparationRvat,
-        next="verifier", 
-        plugins=[
-            UserActionMutation('rvat', schema.Rvat)
-        ]
+        next="verifier"
     )
 
     verifier = nodes.UserAction(
         forms.FormulaireVerificateurRvat,
-        next="statuer_verification",
-        enter=Self.enter_verification,
-        plugins=[
-            UserActionMutation('rvat', schema.Rvat)
-        ]
+        next="poursuivre",
+        enter=Self.enter_verifier
     )
 
-    statuer_verification = nodes.If(Self.statuer_verification, "approuver", "correction_verification")
-    correction_verification = nodes.UserAction(
-        forms.FormulairePreparationRvat,
-        next="verifier", 
-        enter=Self.enter_correction_verification,
-        plugins=[
-            UserActionMutation('rvat', schema.Rvat)
-        ]
-    )
-    
     approuver = nodes.UserAction(
         forms.FormulaireApprobateurRvat,
-        enter=Self.enter_approbation,
-        next="statuer_approbation",
-        plugins=[
-            UserActionMutation('rvat', schema.Rvat)
-        ]
+        enter=Self.enter_approuver,
+        next="poursuivre"
     )
-    statuer_approbation = nodes.If(Self.f_statuer_verification, "approuver", "correction_verification")
-    correction_approbation = nodes.UserAction(Self.f_start, next="verifier", enter=Self.enter_correction_verification)
+    
+    correction = nodes.UserAction(
+        forms.FormulairePreparationRvat,
+        next="renvoyer",
+        enter=Self.enter_correction
+    )
 
-    @staticmethod
-    def f_start(activation, context, decision, redacteur, **input):
-        context.redacteur = redacteur
-        activation.task.assigned_to = context.redacteur
-        decision.valid()
+    poursuivre = nodes.Branch(
+        'transmettre',
+        verifier=poursuivre('verifie'),
+        approuver=poursuivre('approuve')
+    )
 
+    transmettre = nodes.UserAction(
+        forms.FormulaireTransmettre,
+        next="end",
+        enter=Self.enter_transmettre
+    )
+    
     @staticmethod
-    def f_verifier(activation, context, **input):
-        decision.valid()
-
-    @staticmethod
-    def enter_verification(activation, context, **input):
+    def enter_verifier(activation, context, **input):
         activation.task.assigned_to_group = context.verificateur
-        signals.rvat_a_verifier(sender=RvatFlow, task=activation.task)
-    
-    @staticmethod
-    def f_statuer_verification(activation, context, **input):
-        return context.verifie
+        signals.rvat_a_verifier(sender="RVAT", task=activation.task)
 
     @staticmethod
-    def enter_correction_verification(activation, context, **input):
-        pass
-    
-    @staticmethod
-    def f_approuver(activation, context, **input):
-        pass
-
-    @staticmethod
-    def enter_approbation(activation, context, **input):
+    def enter_approuver(activation, context, **input):
         activation.task.assigned_to_group = context.approbateur
-        signals.rvat_a_approuver(sender=RvatFlow, task=activation.task)
+        signals.rvat_a_approuver(sender="RVAT", task=activation.task)
+
+    @staticmethod
+    def enter_transmettre(activation, context, **input):
+        activation.task.assigned_to_group = context.administratif
+        signals.rvat_a_transmettre(sender="RVAR", task=activation.task)
+    
+    @staticmethod
+    def enter_correction(activation, context, **input):
+        activation.task.assigned_to_group = context.redacteur
+
 
 
 

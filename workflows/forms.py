@@ -27,3 +27,8 @@ class FormulaireApprobateurRvat(forms.ModelForm):
    class Meta:
         model = Rvat
         fields = ('approuve', 'commentaire_approbateur')
+
+class FormulaireTransmettre(forms.ModelForm):
+   class Meta:
+        model = Rvat
+        fields = ('approuve', 'commentaire_approbateur')

@@ -1,12 +1,14 @@
+import graphene
+from graphene import ObjectType, Field, Mutation, relay
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.forms.mutation import DjangoModelFormMutation
-from graphene import relay, ObjectType, ID, Field, String, Int, Boolean, Mutation, Scalar
-from graphene_plus import GlobalID
 from django.db.models import Q
 
+from . import tasks
 from . import models
+from . import nodes
 
 class Task(DjangoObjectType):
     class Meta:
@@ -34,61 +36,75 @@ class MyTask(DjangoObjectType):
 class Process(DjangoObjectType):
     class Meta:
         model = models.Process
-        filter_fields = ('status', )
+        filter_fields = ('status',)
         interfaces = (relay.Node,)
 
-class UserActionMutation:
-    def __init__(self, return_field_name, return_field_type):
-        self.return_field_name = return_field_name
-        self.return_field_type = return_field_type
+def __create_mutation(flow):
+    class CreateFlow(graphene.Mutation):
+        class Arguments:
+            pass
 
-    def __create_meta_mutation(self,  node):
-        attrs = {}
+        process = Field(Process)
+        task = Field(Task)
+
+        @classmethod
+        def mutate(cls, root, info, id):
+            process, task = tasks.spawn_flow(flow, user=info.context.user)
+            return cls(process=process, task=task)
+
+    return CreateFlow
+
+def flow_mutation(flow, context_type):
+    fields = {
+        'create_flow': __create_mutation(flow).Field()
+    }
+    
+    for step, node in flow.steps.items():
+        if isinstance(node, nodes.UserAction):
+            field = __as_task_mutation(node, context_type)
+            fields[field.name] = field.Field()
+
+    return type("{}Mutations".format(flow.__name__), (ObjectType,), fields)
+
+def __create_meta_task_mutation(node):
+    attrs = {}
+    
+    if getattr(node, 'form_class'):
+        attrs['form_class'] = node.form_class
+
+    return type("Meta", (), attrs)
+
+def __perform_task_mutate():
+    def wrapper(self, form, info):
+        task = form.cleaned_data['task']
+        options = {}
         
-        if getattr(node, 'form_class'):
-            attrs['form_class'] = node.form_class
+        if getattr(info.context, 'user'):
+            options['user'] = info.context.user
 
-        return type("Meta", (), attrs)
+        context = submit(context, form.cleaned_data, **options)
 
-    def __perform_mutate(self):
-        def wrapper(self, form, info):
-            task = form.cleaned_data['task']
-            options = {}
-            
-            if getattr(info.context, 'user'):
-                options['user'] = info.context.user
+        return node.__class__(**{
+            'context': context
+        })
 
-            context = submit(context, form.cleaned_data, **options)
+    return wrapper
 
-            return node.__class__(**{
-                self.return_field_name: self.return_field_type(context)
-            })
+def __as_task_mutation(node, context_type):
+    type_name = node.name
+    
+    mutation_type = type(
+        type_name, 
+        (DjangoModelFormMutation,), 
+        {
+            'name':             node.name,
+            'context':          Field(context_type),
+            'Meta':             __create_meta_task_mutation(node),
+            'perform_mutate':   __perform_task_mutate()
+        }
+    )   
 
-        return wrapper
-
-    def add_mutation(self, node):
-        flow_name = node.flow.__name__.lower()
-        if hasattr(node.flow, 'name'):
-            flow_name = node.flow.name
-
-        type_name = "".join(list(map(lambda n: n.capitalize(), [flow_name, node.name])))
-        
-        mutation_type = type(
-            type_name, 
-            (DjangoModelFormMutation,), 
-            {
-                'name': "_".join([flow_name, node.name.lower()]),
-                'Meta': self.__create_meta_mutation(node),
-                self.return_field_name: self.return_field_type,
-                'perform_mutate': self.__perform_mutate()
-            }
-        )
-
-        setattr(Mutation, mutation_type.name, mutation_type.Field())
-        return mutation_type
-
-    def __call__(self, node):
-        self.add_mutation(node)
+    return mutation_type 
 
 class Query(ObjectType):
     processes = DjangoFilterConnectionField(Process)
