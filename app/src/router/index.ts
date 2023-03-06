@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import AiotsView from '../views/AiotsView.vue'
+import VueAiots from '../views/VueAiots.vue'
 import VueAiot from '../views/VueAiot.vue'
 import VueSuivisInspections from '../views/VueSuivisInspections.vue'
 
@@ -15,7 +15,7 @@ const router = createRouter({
     {
       path: '/aiots',
       name: 'aiots',
-      component: AiotsView
+      component: VueAiots
     }, 
     {
       path: '/aiot/:id',

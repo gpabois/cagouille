@@ -9,6 +9,9 @@ from polymorphic.models import PolymorphicModel
 class StatutSuivi(models.Model):
     nom = models.CharField(max_length=255)
 
+    def __str__(self):
+        return self.nom
+
 class BaseSuivi(PolymorphicModel):
     nom         = models.CharField(max_length=255)
     statut      = models.ForeignKey(StatutSuivi, on_delete=models.SET_NULL, null=True, blank=True)

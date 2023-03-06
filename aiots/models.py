@@ -39,7 +39,7 @@ class DepartementManager(models.Manager):
 class Departement(models.Model):
     region  = models.ForeignKey(Region, on_delete=models.CASCADE)
     nom     = models.CharField(max_length=255, null=False)
-    code    = models.CharField(max_length=10, null=False)
+    code    = models.CharField(max_length=50, null=False)
     
     objects = DepartementManager()
 
@@ -59,9 +59,9 @@ class CommuneManager(models.Manager):
 class Commune(models.Model):
     departement = models.ForeignKey(Departement, on_delete=models.CASCADE)
     nom = models.CharField(max_length=255, null=False)
-    abbv = models.CharField(max_length=10, null=False)
-    code_insee = models.CharField(max_length=10, null=True)
-    code_postal = models.CharField(max_length=10, null=False)
+    abbv = models.CharField(max_length=50, null=False)
+    code_insee = models.CharField(max_length=50, null=True)
+    code_postal = models.CharField(max_length=50, null=False)
     
     objects = CommuneManager()
     

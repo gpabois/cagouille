@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, reactive } from 'vue';
-import AutocompleteQuery from './AutocompleteQuery.vue';
+import AutocompleteQuery from '@/components/fields/AutocompleteQuery.vue';
 
 const props = defineProps(['columns', 'rows']);
 
@@ -13,10 +13,17 @@ function sortUpdated(col) {
     const stateIdx = sortStateIndex(col);
     
     if(stateIdx < 0) {
-        order.push({
+        var sort = {
             'id':   col.id,
+            'filter_id': col.id,
             'sort': 'asc'
-        })
+        };
+        
+        if (col.sortable.id) {
+            sort['filter_id'] = col.sortable.id
+        }
+        
+        order.push(sort);
     } else {
         if (order[stateIdx].sort == 'asc') {
             order[stateIdx].sort = 'desc';
@@ -112,7 +119,7 @@ function filterRemoveIn(col, element) {
                         <AutocompleteQuery 
                             v-if="col.filter.values.type == 'query'"
                             :query="col.filter.values.query"
-                            :elements="(data) => data.aiots.edges"
+                            :elements="col.filter.values.elements"
                             :transform="col.filter.transform"
                             @input="element => filterAddIn(col, element)"
                         />
@@ -135,7 +142,7 @@ function filterRemoveIn(col, element) {
         <tbody>
             <tr v-for="row in props.rows">
                 <td v-for="col in props.columns">
-                    <slot :name="`row_${col.id}`">
+                    <slot :name="`row_${col.id}`" :row="row" :value="col.value(row)">
                         {{ col.value(row) }}
                     </slot>
                 </td>

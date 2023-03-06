@@ -1,0 +1,40 @@
+{% extends "web/base.html" %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1 class="text-center">Cagouille</h1>
+    <form method="post" action="" class="shadow-lg p-3 mb-5 bg-white rounded p-3 mt-4">
+        {% csrf_token %}
+        {{ form.errors }}
+       
+        <div class="form-outline mb-4">
+            <input type="text" id="usernameField" name="username" class="form-control" />
+            <label class="form-label" for="usernameField">Nom utilisateur</label>
+        </div>
+
+        <div class="form-outline mb-4">
+            <input type="password" id="passwordField" name="password" class="form-control" />
+            <label class="form-label" for="passwordField">Mot de passe</label>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col d-flex justify-content-center">
+            <!-- Checkbox -->
+            <div class="form-check">
+                <input class="form-check-input" id="rememberMeField" type="checkbox" value="" checked />
+                <label class="form-check-label" for="rememberMeField">Se souvenir de moi ?</label>
+            </div>
+            </div>
+
+            <div class="col">
+            <!-- Simple link -->
+            <a href="#!">Mot de passe oublié ?</a>
+            </div>
+        </div>
+
+        <!-- Submit button -->
+        <button type="submit" class="btn btn-primary btn-block mb-4">Se connecter</button>
+
+    </form>
+</div>
+{% endblock %}

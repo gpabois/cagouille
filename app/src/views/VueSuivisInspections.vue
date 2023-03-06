@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import Table from '../components/Table.vue';
-import query from '../graphql/VueSuivisInspections.js';
-import { AUTOCOMPLETE_AIOT } from '../graphql/UtilsAiot.js';
-import { parseAndFormatDate, loadMoreMixin } from '../utils.js';
+import Table from '@/components/Table.vue';
+import query from '@/graphql/VueSuivisInspections.js';
+import { AUTOCOMPLETE as AUTOCOMPLETE_AIOT } from '@/graphql/Aiots.js';
+import { parseAndFormatDate, loadMoreMixin } from '@/utils.js';
 import {ref} from 'vue';
-import { transform } from '@vue/compiler-core';
+import NouveauSuiviInspection from '../components/suivis/inspections/Nouveau.vue'
 
 const loadMore = loadMoreMixin("suiviInspections");
 const orderBy = ref('');
 const filter = ref({});
+const displayCreateForm = ref(false);
 
 const columns = [{
     id: 'nom',
@@ -17,21 +18,7 @@ const columns = [{
 }, {
     id: 'aiot',
     name: 'Aiot',
-    value: (row) => row.node.aiot.nom,
-    filter: {
-        type: 'in',
-        values: {
-            type: 'query',
-            query: AUTOCOMPLETE_AIOT,
-            variables: (filter) => ({filter}),
-            elements: (data) => { data.aiots.edges }
-        },
-        transform: (edge) => ({
-            'id': edge.node.id,
-            'label': edge.node.nom
-        })
-        
-    }
+    value: (row) => row.node.aiot.nom
 }, {
     id: 'statut',
     name: 'Statut',
@@ -58,8 +45,14 @@ function filterUpdated(filters) {
 
 <template>
     <h1>Inspections</h1>
+    <button class="btn btn-primary" type="button" @click="displayCreateForm=true">Nouveau</button>
     <ApolloQuery :query="query" :variables="{orderBy, ...filter}">
-        <template v-slot="{ result: { loading, error, data }, query }">
+        <template v-slot="{ result: { loading, error, data }, query, refetch }">
+            <div v-if="displayCreateForm">
+                <div class="shadow p-4 mt-3 mb-3">
+                    <NouveauSuiviInspection @created="refetch()"/>
+                </div>
+            </div>
             <div v-if="data">               
                 <Table 
                     :rows="data.suivisInspections.edges" 

@@ -4,7 +4,8 @@ import { ref, defineEmits, defineProps } from 'vue'
 const props = defineProps([
     'query',
     'elements',
-    'transform'
+    'transform',
+    'value'
 ])
 
 const filter = ref('');
@@ -18,7 +19,7 @@ const onSelected = function (e) {
     filterBuffer.value = e.target.dataset["label"];
     displayResults.value = false;
     debounce.value = true;
-    emit('input', {id: e.target.dataset["id"], label: e.target.dataset["label"]});
+    emit('input', e.target.dataset["value"]);
 };
 
 const onInputModified = function (_) {
@@ -36,13 +37,19 @@ const onInputModified = function (_) {
     }
 };
 
-const id = (element) =>  props.transform(element).id;
+const value = (element) =>  props.transform(element).value;
 const label = (element) => props.transform(element).label;
 </script>
 
 <template>
     <div class="autocomplete-form">
-        <input class="form-control" type="text" id="autocomplete-search" v-model="filterBuffer" @input="onInputModified">
+        <input 
+            class="form-control" 
+            type="text" 
+            id="autocomplete-search" 
+            v-model="filterBuffer" 
+            @input="onInputModified"
+        >
         <ApolloQuery :query="props.query" :variables="{filter}">
             <template v-slot="{ result: { loading, error, data }, query }">
                 <ul class="list-group list-group-flush" 
@@ -50,7 +57,7 @@ const label = (element) => props.transform(element).label;
                 >
                     <li class="list-group-item list-group-item-action"
                         v-for="element in props.elements(data)"  
-                        :data-id="id(element)"
+                        :data-value="value(element)"
                         :data-label="label(element)"
                         @click="onSelected">
                         {{ label(element) }}

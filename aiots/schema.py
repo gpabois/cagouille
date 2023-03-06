@@ -1,3 +1,5 @@
+import django_filters
+import graphene
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.forms.mutation import DjangoModelFormMutation
@@ -27,18 +29,37 @@ class Commune(DjangoObjectType):
             'departement__nom': ['exact', 'icontains', 'istartswith']
         }
 
-class Aiot(DjangoObjectType):
+class FiltreAiot(django_filters.FilterSet):
+    order_by = django_filters.OrderingFilter(
+        fields=(
+            'nom',
+            'commune__nom'
+        )
+    )
+    
     class Meta:
         model = models.Aiot
-        interfaces = (relay.Node, )
-        filter_fields  = {
+        fields = {
             'nom': ['exact', 'icontains', 'istartswith'],
             'code': ['exact', 'icontains', 'istartswith'],
             'commune__nom': ['exact', 'icontains', 'istartswith'],
-            'commune__departement__nom': ['exact', 'icontains', 'istartswith'],
-            'commune__departement__region__nom': ['exact', 'icontains', 'istartswith'],
-            'rubriques_icpe__rubrique__code': ['exact', 'icontains', 'istartswith']
+            'rubriques_icpe__rubrique__code': ['exact', 'icontains', 'istartswith'],
         }
+
+class Aiot(DjangoObjectType):
+    libelle = graphene.String()
+
+    class Meta:
+        model = models.Aiot
+        interfaces = (relay.Node, )
+        filterset_class = FiltreAiot
+
+    @classmethod
+    def get_queryset(cls, queryset, info):
+        return queryset.distinct()
+
+    def resolve_libelle(self, info):
+        return str(self)
 
 class CreerAiot(relay.ClientIDMutation):
     class Input:

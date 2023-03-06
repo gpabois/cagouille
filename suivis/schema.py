@@ -52,10 +52,10 @@ class SuiviInspection(DjangoObjectType):
 
 class AjouterSuiviInspection(relay.ClientIDMutation):
     class Input:
-        nom         = String(required=True)
-        aiot_id     = GlobalID(name="aiot", required=True)
-        type_id     = GlobalID(name="type")
-        statut_id   = GlobalID(name="statut")
+        nom                 = String(required=True)
+        aiot_id             = GlobalID(name="aiot", required=True)
+        type_id             = GlobalID(name="type")
+        statut_id           = GlobalID(name="statut")
         date_previsionnelle = Date()
         date_preparation    = Date()
         date_inspection     = Date()
