@@ -20,7 +20,7 @@ class MyTask(DjangoObjectType):
     class Meta:
         model = models.Task
         interfaces = (relay.Node, )
-        filter_fields = '__all__'
+        filter_fields = ('id', 'status')
 
     @classmethod
     def get_queryset(cls, info, id):
@@ -49,9 +49,9 @@ def __create_mutation(flow):
         error = String()
 
         @classmethod
-        def mutate(cls, root, info, id):
+        def mutate(cls, root, info):
             try:
-                process, task = tasks.spawn_flow(flow, user=info.context.user)
+                process, task = tasks.spawn_flow(flow, flow.context_class(), ser=info.context.user)
                 return cls(process=process, task=task)
             except Exception as e:
                 return cls(error=str(e))

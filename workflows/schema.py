@@ -18,10 +18,14 @@ class Rvat(DjangoObjectType):
 class Query(ObjectType):
     rvats = DjangoFilterConnectionField(Rvat)
 
+RvatMutations = flow_mutation(
+    flows.Rvat, 
+    Rvat
+)
+
 class Mutation(ObjectType):
-    rvat = Field(
-        flow_mutation(
-            flows.Rvat, 
-            Rvat
-        )
-    )
+    rvat = Field(RvatMutations)
+
+    @staticmethod
+    def resolve_rvat(root, info):
+        return RvatMutations()
