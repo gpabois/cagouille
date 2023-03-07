@@ -32,7 +32,7 @@ DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = []
 
 # Application definition
-GEORISQUE_API_URL = env.str(GEORISQUE_API_URL, default='https://www.georisques.gouv.fr/api/v1')
+GEORISQUE_API_URL = env.str('GEORISQUE_API_URL', default='https://www.georisques.gouv.fr/api/v1')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
