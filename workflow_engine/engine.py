@@ -37,6 +37,11 @@ class Engine:
         node = flow.node(step)
         
         task = Task(process=process, step=step)
+        
+        if "user" in options:
+            task.assigned_to_user = options['user']
+            del options['user']
+            
         task.previous = previous
         task.save()
         

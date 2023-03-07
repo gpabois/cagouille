@@ -1,0 +1,13 @@
+[Unit]
+Description=Démarre le service principal de Cagouille
+After=network.target
+
+[Service]
+User=cagouille
+Restart=on-failure
+WorkingDirectory=/opt/cagouille
+ExecStart=/opt/cagouille/venv/bin/gunicorn cagouille.wsgi -b 0.0.0.0:8000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -12,23 +12,27 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 import os
+import environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, '.env')) 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&xkw#(hd6ka&cfux#hxg22lpw=-9o4cn$*v4tl+k^es+&_z33!'
+SECRET_KEY = env.str('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = []
 
 # Application definition
-GEORISQUE_API_URL = 'https://www.georisques.gouv.fr/api/v1'
+GEORISQUE_API_URL = env.str(GEORISQUE_API_URL, default='https://www.georisques.gouv.fr/api/v1')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -83,6 +87,7 @@ WSGI_APPLICATION = 'cagouille.wsgi.application'
 
 # Celery configuration
 CELERY_TASK_ALWAYS_EAGER = False
+CELERY_BROKER_URL = env.str('CELERY_BROKER_URL')
 CELERY_TIMEZONE = "Australia/Tasmania"
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'django-cache'
@@ -100,16 +105,7 @@ GRAPHENE = {
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'TEST': {
-            'NAME': 'test_cagouille',
-            'USER': 'test_cagouille',
-        },
-        'NAME': os.getenv('DATABASE_NAME', 'cagouille'),
-        'HOST': 'localhost',
-        'PORT': '',
-    }
+    'default': env.db('DATABASE_URL')
 }
 
 

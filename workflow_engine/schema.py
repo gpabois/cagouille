@@ -1,5 +1,5 @@
 import graphene
-from graphene import ObjectType, Field, Mutation, relay, String
+from graphene import ObjectType, Field, Mutation, relay, String, Boolean
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
@@ -10,28 +10,32 @@ from . import tasks
 from . import models
 from . import nodes
 
+class User(DjangoObjectType):
+    class Meta:
+        model = models.User
+        filter_fields = ('id', 'username', 'email')
+        interfaces = (relay.Node,)
+
+class Group(DjangoObjectType):
+    class Meta:
+        model = models.Group
+        filter_fields = ('id',)
+        interfaces = (relay.Node,)
+
 class Task(DjangoObjectType):
     class Meta:
         model = models.Task
         filter_fields = ('id', 'status', 'process')
         interfaces = (relay.Node,)
+    
+    assigned_to_user = Field(User)
+    assigned_to_group = Field(Group)
 
 class MyTask(DjangoObjectType):
     class Meta:
         model = models.Task
         interfaces = (relay.Node, )
-        filter_fields = ('id', 'status')
-
-    @classmethod
-    def get_queryset(cls, info, id):
-        if info.context.user.is_anonymous:
-            return []
-        else:
-            return Task.objects.filter(
-                Q(assigned_to_user=info.context.user) | Q(
-                    assigned_to_group__user=info.context.user
-                )
-            )
+        filter_fields = ('id', 'status', 'process')
 
 class Process(DjangoObjectType):
     class Meta:
@@ -44,6 +48,7 @@ def __create_mutation(flow):
         class Arguments:
             pass
 
+        ok = Boolean()
         process = Field(Process)
         task = Field(Task)
         error = String()
@@ -51,10 +56,12 @@ def __create_mutation(flow):
         @classmethod
         def mutate(cls, root, info):
             try:
-                process, task = tasks.spawn_flow(flow, flow.context_class(), ser=info.context.user)
-                return cls(process=process, task=task)
+                process, task = tasks.spawn_flow(flow, flow.context_class(), user=info.context.user)
+                return cls(process=process, task=task, ok=True)
             except Exception as e:
-                return cls(error=str(e))
+                import traceback
+                traceback.print_exc()
+                return cls(error=str(e), ok=False)
 
     return CreateFlow
 
@@ -116,6 +123,16 @@ class Query(ObjectType):
     my_tasks = DjangoFilterConnectionField(MyTask)
     process = relay.Node.Field(Process)
     task = relay.Node.Field(Task)
+
+    def resolve_my_tasks(self, info):
+        if info.context.user.is_anonymous:
+            return Task.objects.none()
+        else:
+            return Task.objects.filter(
+                Q(assigned_to_user=info.context.user) 
+                | 
+                Q(assigned_to_group__user=info.context.user)
+            )
 
 class Mutation(ObjectType):
     pass

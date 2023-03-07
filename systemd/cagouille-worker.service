@@ -1,0 +1,13 @@
+[Unit]
+Description=Démarre le service worker de Cagouille
+After=cagouille.service
+
+[Service]
+User=cagouille
+Restart=on-failure
+WorkingDirectory=/opt/cagouille
+ExecStart=/opt/cagouille/venv/bin/celery -A cagouille worker -l INFO
+Restart=on-failure
+
+[Install]
+WantedBy=cagouille.service
