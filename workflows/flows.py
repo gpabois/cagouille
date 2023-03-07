@@ -16,7 +16,8 @@ class Rvat(Workflow):
 
     start = nodes.UserAction(
         forms.FormulairePreparationRvat,
-        next="verifier"
+        next="verifier",
+        enter=Self.enter_preparation
     )
 
     verifier = nodes.UserAction(
@@ -49,6 +50,10 @@ class Rvat(Workflow):
         enter=Self.enter_transmettre
     )
     
+    @staticmethod
+    def enter_preparation(activation, context, **input):
+        signals.rvat_a_preparer(sender="RVAT", task=activation.task)
+
     @staticmethod
     def enter_verifier(activation, context, **input):
         activation.task.assigned_to_group = context.verificateur
