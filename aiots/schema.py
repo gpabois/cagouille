@@ -46,8 +46,16 @@ class FiltreAiot(django_filters.FilterSet):
             'rubriques_icpe__rubrique__code': ['exact', 'icontains', 'istartswith'],
         }
 
+import suivis.schema
+import suivis.models
 class Aiot(DjangoObjectType):
+
     libelle = graphene.String()
+    
+    suivis_inspections = DjangoFilterConnectionField(
+        suivis.schema.SuiviInspection,
+        order_by=String(required=False)
+    )
 
     class Meta:
         model = models.Aiot
@@ -61,6 +69,14 @@ class Aiot(DjangoObjectType):
     def resolve_libelle(self, info):
         return str(self)
 
+    def resolve_suivis_inspections(self, info, **kwargs):
+        print(kwargs)
+        query = suivis.models.SuiviInspection.objects.filter(aiot_id=self.id)
+        
+        if "order_by" in kwargs:
+            query.order_by(kwargs['order_by'])
+        
+        return query
 class CreerAiot(relay.ClientIDMutation):
     class Input:
         nom = String(required=True)
@@ -122,7 +138,7 @@ class Query(ObjectType):
     departements = DjangoFilterConnectionField(Departement)
     communes = DjangoFilterConnectionField(Commune)
     
-    aiots = DjangoFilterConnectionField(Aiot)
+    aiots = DjangoFilterConnectionField(Aiot, max_limit=None)
     aiot = relay.Node.Field(Aiot)
 
 class Mutation(ObjectType):

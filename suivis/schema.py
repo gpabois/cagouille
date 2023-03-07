@@ -30,9 +30,11 @@ class FiltreSuiviInspection(django_filters.FilterSet):
             'nom',
             'statut',
             'type',
-            'date_previsionnelle'
+            'date_previsionnelle',
+            'date_inspection'
         )
     )
+
     class Meta:
         model = models.SuiviInspection
         fields = [
@@ -48,7 +50,6 @@ class SuiviInspection(DjangoObjectType):
         model = models.SuiviInspection
         interfaces = (relay.Node,)
         filterset_class = FiltreSuiviInspection
-
 
 class AjouterSuiviInspection(relay.ClientIDMutation):
     class Input:
