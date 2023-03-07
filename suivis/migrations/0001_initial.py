@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('aiots', '0001_initial'),
-        ('auth', '0013_group_level_group_lft_group_parent_group_rght_and_more'),
+        ('auth', '0001_initial'),
         ('contenttypes', '0002_remove_content_type_name'),
     ]
 
