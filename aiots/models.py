@@ -97,6 +97,15 @@ class Aiot(models.Model):
     code = models.CharField(max_length=255)
     nom = models.CharField(max_length=255)
 
+    adresse_site = models.CharField(max_length=255, null=True)
+    complement_adresse_site = models.CharField(max_length=255, null=True)
+    courriel = models.CharField(max_length=255, null=True)
+    
+    ied = models.BooleanField(default=False)
+    
+    a_poi = models.BooleanField(default=False)
+    date_poi = models.DateTimeField(null=True)
+
     objects = AiotManager()
 
     class Meta:

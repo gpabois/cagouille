@@ -1,8 +1,9 @@
 from django.conf import settings
 from aiots import models
 from django.db import transaction
+from django.db.models import Q
 
-import requests, itertools, time
+import requests, itertools, time, csv
 
 IIC_API_URI = "{}/installations_classees".format(settings.GEORISQUE_API_URL)
 
@@ -78,6 +79,50 @@ def recuperer_rubrique_icpe(rubrique_data):
         )
         rubrique.save()
         return rubrique
+
+def synchroniser_statut_aiot(statut):
+    try:
+        return models.StatutAiot.objects.get(libelle=statut)
+    except models.StatutAiot.DoesNotExist:
+        statut = models.StatutAiot(libelle=statut)
+        statut.save()
+        return statut
+
+def synchroniser_ligne_fichier_gun(row):
+    ied         = row['Statut IED'] == 'Oui'
+    courriel    = row['Courriel échange admin'] if '@' in row['Courriel échange admin'] else None
+    code   = row['Code AIOT']
+    adresse_site = row['Adresse site']
+    complement_adresse_site = row['Complément adresse site'] if row['Complément adresse site'] != '-' else None
+    statut = synchroniser_statut_aiot(row["Etat de l'activité"])
+    a_poi = row['Existence POI'] == 'Oui'
+    date_poi =  None
+
+    try:
+        aiot = models.Aiot.objects.get(Q(code__contains=code))
+        
+        aiot.ied = ied
+        aiot.courriel = courriel
+        aiot.adresse_site = adresse_site
+        aiot.complement_adresse_site = complement_adresse_site
+        aiot.a_poi = a_poi
+        aiot.date_poi = date_poi
+
+        aiot.save()
+        return aiot
+    except models.Aiot.MultipleObjectsReturned as e:
+        return None
+    except models.Aiot.DoesNotExist:
+        return None
+
+@transaction.atomic
+def synchroniser_avec_fichier_gun(**options):
+    fichier = options['fichier']
+    with open(fichier, "r") as file:
+        for row in csv.DictReader(file, delimiter=";"):
+            aiot = synchroniser_ligne_fichier_gun(row)
+            if aiot:
+                yield aiot
 
 @transaction.atomic
 def synchroniser_avec_georisques(**filter):
