@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('aiots', '0001_initial'),
         ('workflow_engine', '0001_initial'),
-        ('auth', '0013_group_level_group_lft_group_parent_group_rght_and_more'),
+        ('auth', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
