@@ -24,4 +24,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path("graphql", csrf_exempt(PrivateGraphQLView.as_view(graphiql=True))),
+    path('accounts/', include('django.contrib.auth.urls'))
 ] + static('assets/', document_root="static/assets") + [path('', include('web.urls'))]

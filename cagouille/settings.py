@@ -25,13 +25,25 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env.str('SECRET_KEY')
-STATIC_ROOT = env.str('STATIC_ROOT', default=os.path.join(BASE_DIR, 'static/'))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool('DEBUG', default=False)
 
+# Security
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# Email
+EMAIL_BACKEND = env.str('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+
+if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
+    EMAIL_HOST = env.str('EMAIL_HOST')
+    EMAIL_PORT = env.str('EMAIL_PORT')
+    EMAIL_HOST_USER = env.str('EMAIL_HOST_USER')
+    EMAIL_HOST_PASSWORD = env.str('EMAIL_HOST_PASSWORD')
+    EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', False)
+    EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', False)
+    
 
 # Application definition
 GEORISQUE_API_URL = env.str('GEORISQUE_API_URL', default='https://www.georisques.gouv.fr/api/v1')
@@ -134,11 +146,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
 LANGUAGE_CODE = 'fr'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
@@ -146,6 +155,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = env.str('STATIC_ROOT', default=os.path.join(BASE_DIR, 'static/'))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field

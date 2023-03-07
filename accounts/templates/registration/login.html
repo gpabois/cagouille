@@ -2,8 +2,8 @@
 
 {% block body %}
 <div class="container mt-4">
-    <h1 class="text-center">Cagouille</h1>
     <form method="post" action="" class="shadow-lg p-3 mb-5 bg-white rounded p-3 mt-4">
+        <h1 class="text-center mb-3">Cagouille</h1>
         {% csrf_token %}
         {{ form.errors }}
        
@@ -28,7 +28,7 @@
 
             <div class="col">
             <!-- Simple link -->
-            <a href="#!">Mot de passe oublié ?</a>
+            <a href="../password_reset/">Mot de passe oublié ?</a>
             </div>
         </div>
 
