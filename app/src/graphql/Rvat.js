@@ -1,14 +1,17 @@
 import gql from 'graphql-tag'
 
 export const START = gql`
-    mutation Start($input: startInput!) {
-        rvat {
-            start(input: $input) {
-                ok,
-                errors
+mutation Start($input: startInput!) {
+    rvat {
+        start(input: $input) {
+            ok,
+            errors {
+              field, 
+              messages
             }
         }
-    }  
+    }
+}  
 `;
 
 export const VERIFIER = gql`

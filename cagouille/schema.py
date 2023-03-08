@@ -22,7 +22,8 @@ class ExceptionMiddleware(object):
         try:
             return next(root, info, **args)   
         except Exception as e:
-            print(e)
+            import traceback
+            traceback.print_exc()
             return None
 
 schema = graphene.Schema(

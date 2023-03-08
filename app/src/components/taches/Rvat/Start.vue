@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import {ref, defineProps} from 'vue'
+import {reactive, defineProps} from 'vue'
+import { useMutation } from '@vue/apollo-composable'
 import {START as MUTATION} from '@/graphql/Rvat.js'
 import AutocompleteGroupe from '@/components/fields/AutocompleteGroupe.vue'
 import AutocompleteAiot from '@/components/fields/AutocompleteAiot.vue';
 
 var props = defineProps(['task'])
-var input = ref({
+
+var input = reactive({
     task: props.task.id,
     aiot: null,
+    nom: null,
     uriTravail: null,
     verificateur: null,
     approbateur: null,
@@ -15,14 +18,13 @@ var input = ref({
     dateLimiteVerification: null,
     dateLimiteApprobation: null
 })
+
+const { mutate } = useMutation(MUTATION, {variables: {input}, errorPolicy: 'ignore'});
+
 </script>
 <template>
     <div class="container m-3">
         <h2>Execution</h2>
-        <ApolloMutation :mutation="MUTATION" :variables="{input}">
-            <template v-slot="{mutate, loading, error}">
-                <form>
-                    {{ error }}
                     <div class="form-group">
                         <label>Nom</label>
                         <input type="text" v-model="input.nom" class="form-control"/>
@@ -67,8 +69,6 @@ var input = ref({
                     <button class="btn btn-primary" @click="mutate()">
                         Transmettre
                     </button>
-                </form>
-            </template>
-        </ApolloMutation>
+
     </div>
 </template>

@@ -74,12 +74,12 @@ def flow_mutation(flow, context_type):
     
     for step, node in flow.steps.items():
         if isinstance(node, nodes.UserAction):
-            field = __as_task_mutation(node, context_type)
+            field = __as_task_mutation(flow, node, context_type)
             fields[field.name] = field.Field()
 
     return type("{}Mutations".format(flow.__name__), (ObjectType,), fields)
 
-def __as_task_mutation(node, context_type):
+def __as_task_mutation(flow, node, context_type):
     type_name = node.name
     
     class TaskMutation(DjangoModelFormMutation):
@@ -88,7 +88,7 @@ def __as_task_mutation(node, context_type):
         ok = Boolean()
         
         class Input:
-            task = Field(Task, required=True)
+            task = GlobalID()
             
         class Meta:
             form_class = node.form_class
@@ -97,6 +97,7 @@ def __as_task_mutation(node, context_type):
         @classmethod
         def mutate_and_get_payload(cls, root, info, **data):
             form = cls.get_form(root, info, **data)
+            print(data)
             task = models.Task.objects.get(pk=data['task'])
             options = {}
             

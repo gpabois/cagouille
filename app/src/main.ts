@@ -14,9 +14,8 @@ import { createApolloProvider } from '@vue/apollo-option'
 
 // HTTP connection to the API
 const httpLink = createHttpLink({
-  // You should use an absolute URL here
   uri: '/graphql',
-  credentials: 'same-origin'
+  credentials: 'include'
 })
 
 // Cache implementation
@@ -26,6 +25,7 @@ const cache = new InMemoryCache()
 const apolloClient = new ApolloClient({
   link: httpLink,
   cache,
+  connectToDevTools: true
 })
 
 const apolloProvider = createApolloProvider({
