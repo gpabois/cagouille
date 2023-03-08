@@ -48,6 +48,7 @@ class FiltreAiot(django_filters.FilterSet):
 
 import suivis.schema
 import suivis.models
+
 class Aiot(DjangoObjectType):
 
     libelle = graphene.String()

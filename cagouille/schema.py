@@ -11,11 +11,21 @@ from workflows.schema import Query as WorkflowsQuery
 
 from graphene_django.debug import DjangoDebug
 
-
 class Query(AiotQuery, SuivisQuery, AccountsQuery, WorkflowEngineQuery, WorkflowsQuery):
     debug = graphene.Field(DjangoDebug, name='debug')
 
 class Mutation(AiotMutation, SuivisMutation, WorkflowEngineMutation, WorkflowsMutation):
     debug = graphene.Field(DjangoDebug, name='debug')
 
-schema = graphene.Schema(query=Query, mutation=Mutation)
+class ExceptionMiddleware(object):
+    def resolve(self, next, root, info, **args):
+        try:
+            return next(root, info, **args)   
+        except Exception as e:
+            print(e)
+            return None
+
+schema = graphene.Schema(
+    query=Query, 
+    mutation=Mutation
+)

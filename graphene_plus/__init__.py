@@ -19,6 +19,9 @@ class GlobalID(Scalar):
             return ast.value
         
         elif isinstance(ast, StringValueNode):
-            return int(from_global_id(ast.value).id)
+            try:
+                return int(from_global_id(ast.value).id)
+            except:
+                return int(ast.value)
         
         return Undefined

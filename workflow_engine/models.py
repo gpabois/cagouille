@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User, Group
 from celery.result import AsyncResult
+from graphql_relay.node.node import to_global_id
 
 class Process(models.Model):
     flow_class = models.CharField(max_length=255)
@@ -30,6 +31,7 @@ class Process(models.Model):
         self.status = 'done'
 
 class Task(models.Model):
+    done_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='tasks_done')
     assigned_to_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     assigned_to_group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
     
@@ -55,6 +57,10 @@ class Task(models.Model):
         return "{}::{}({}) [{}]".format(str(self.process), self.step, self.pk, self.status)
 
     log = models.TextField()
+
+    @property
+    def global_id(self):
+        return to_global_id("task", self.id)
     
     def ready(self):
         self.status = 'ready'

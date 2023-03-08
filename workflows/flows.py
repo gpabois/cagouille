@@ -17,13 +17,15 @@ class Rvat(Workflow):
     start = nodes.UserAction(
         forms.FormulairePreparationRvat,
         next="verifier",
-        enter=Self.enter_preparation
+        enter=Self.enter_preparation,
+        leave=Self.leave_preparation
     )
 
     verifier = nodes.UserAction(
         forms.FormulaireVerificateurRvat,
         next="poursuivre",
-        enter=Self.enter_verifier
+        enter=Self.enter_verifier,
+        leave=Self.leave_verifier
     )
 
     approuver = nodes.UserAction(
@@ -47,31 +49,58 @@ class Rvat(Workflow):
     transmettre = nodes.UserAction(
         forms.FormulaireTransmettre,
         next="end",
-        enter=Self.enter_transmettre
+        enter=Self.enter_transmettre,
+        leave=Self.leave_transmettre
     )
     
     @staticmethod
     def enter_preparation(activation, context, **input):
-        signals.rvat_a_preparer(sender="RVAT", task=activation.task)
+        signals.rvat_a_preparer.send(sender="RVAT", task=activation.task)
+
+    @staticmethod
+    def leave_preparation(activation, context, **input):
+        context.redacteur = activation.task.assigned_to_user
+        context.save()
 
     @staticmethod
     def enter_verifier(activation, context, **input):
         activation.task.assigned_to_group = context.verificateur
-        signals.rvat_a_verifier(sender="RVAT", task=activation.task)
+        signals.rvat_a_verifier.send(sender="RVAT", task=activation.task)
+
+    @staticmethod
+    def leave_verifier(activation, context, **input):
+        if context.verifie:
+            signals.rvat_verifie.send(sender="RVAT", task=activation.task)
+        else:
+            signals.rvat_rejet_verification.send(sender="RVAT", task=activation.task)
 
     @staticmethod
     def enter_approuver(activation, context, **input):
         activation.task.assigned_to_group = context.approbateur
-        signals.rvat_a_approuver(sender="RVAT", task=activation.task)
+        signals.rvat_a_approuver.send(sender="RVAT", task=activation.task)
 
     @staticmethod
-    def enter_transmettre(activation, context, **input):
-        activation.task.assigned_to_group = context.administratif
-        signals.rvat_a_transmettre(sender="RVAR", task=activation.task)
+    def leave_approuver(activation, context, **input):
+        if context.approuve:
+            signals.rvat_approuve.send(sender="RVAT", task=activation.task)
+        else:
+            signals.rvat_rejet_approbation.send(sender="RVAT", task=activation.task)
+
     
     @staticmethod
     def enter_correction(activation, context, **input):
         activation.task.assigned_to_group = context.redacteur
+        activation.rvat_a_corriger.send(sender="RVAT", task=activation.task)
+
+    @staticmethod
+    def enter_transmettre(activation, context, **input):
+        activation.task.assigned_to_group = context.administratif
+        signals.rvat_a_transmettre.send(sender="RVAT", task=activation.task)
+
+    @staticmethod
+    def leave_transmettre(activation, context, **input):
+         signals.rvat_transmis.send(sender="RVAT", task=activation.task)
+
 
 
 

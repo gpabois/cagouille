@@ -4,7 +4,9 @@ from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.forms.mutation import DjangoModelFormMutation
+from graphene_plus import GlobalID
 from django.db.models import Q
+from django.forms import Form
 
 from . import tasks
 from . import models
@@ -77,45 +79,43 @@ def flow_mutation(flow, context_type):
 
     return type("{}Mutations".format(flow.__name__), (ObjectType,), fields)
 
-def __create_meta_task_mutation(node):
-    attrs = {}
-    
-    if getattr(node, 'form_class'):
-        attrs['form_class'] = node.form_class
-
-    return type("Meta", (), attrs)
-
-def __perform_task_mutate():
-    def wrapper(self, form, info):
-        task = form.cleaned_data['task']
-        options = {}
-        
-        if getattr(info.context, 'user'):
-            options['user'] = info.context.user
-
-        context = submit(context, form.cleaned_data, **options)
-
-        return node.__class__(**{
-            'context': context
-        })
-
-    return wrapper
-
 def __as_task_mutation(node, context_type):
     type_name = node.name
     
-    mutation_type = type(
-        type_name, 
-        (DjangoModelFormMutation,), 
-        {
-            'name':             node.name,
-            'context':          Field(context_type),
-            'Meta':             __create_meta_task_mutation(node),
-            'perform_mutate':   __perform_task_mutate()
-        }
-    )   
+    class TaskMutation(DjangoModelFormMutation):
+        name = type_name
+        context = Field(context_type)
+        ok = Boolean()
+        
+        class Input:
+            task = Field(Task, required=True)
+            
+        class Meta:
+            form_class = node.form_class
+            name = type_name
+       
+        @classmethod
+        def mutate_and_get_payload(cls, root, info, **data):
+            form = cls.get_form(root, info, **data)
+            task = models.Task.objects.get(pk=data['task'])
+            options = {}
+            
+            if getattr(info.context, 'user'):
+                options['user'] = info.context.user
+            
+            result = tasks.submit(task, data, **options)
+            
+            if isinstance(result, Form):
+                form = result
+                errors = ErrorType.from_errors(form.errors)
+                _set_errors_flag_to_context(info)
 
-    return mutation_type 
+                return cls(errors=errors, ok=False, **form.data)
+            else:
+                context = result
+                cls(context=context, ok=False)
+
+    return TaskMutation
 
 class Query(ObjectType):
     processes = DjangoFilterConnectionField(Process)

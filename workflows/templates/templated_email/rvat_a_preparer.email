@@ -1,0 +1,10 @@
+{% block subject %}[CHRONO][RVAT]{% if context.aiot %}[{{context.aiot.nom}}]{% endif %} RVAT à préparer{% endblock %}
+{% block html %}
+  <p>Bonjour {{user.username}},</p>
+
+  <p>Vous avez un RVAT à préparer (Tâche #{{ task.global_id }}).</p>
+
+  <p>Cordialement,</p>
+
+  L'assistant virtuel
+{% endblock %}

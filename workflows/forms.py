@@ -5,6 +5,7 @@ class FormulairePreparationRvat(forms.ModelForm):
    class Meta:
         model = Rvat
         fields = (
+            'nom',
             'aiot',
             
             'verificateur',
@@ -13,9 +14,7 @@ class FormulairePreparationRvat(forms.ModelForm):
 
             'uri_travail',
             'date_limite_verification',
-            'date_limite_approbation',
-            'date_limite_approbation_regional',
-            'rvat_au_regional',
+            'date_limite_approbation'
         )  
 
 class FormulaireVerificateurRvat(forms.ModelForm):
@@ -31,4 +30,4 @@ class FormulaireApprobateurRvat(forms.ModelForm):
 class FormulaireTransmettre(forms.ModelForm):
    class Meta:
         model = Rvat
-        fields = ('approuve', 'commentaire_approbateur')
+        fields = ('reference', 'uri_definitif')

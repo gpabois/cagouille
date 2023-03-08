@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'templated_email',
     'django_celery_results',
     'aiots',
     'workflow_engine',

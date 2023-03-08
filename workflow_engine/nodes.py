@@ -141,12 +141,12 @@ class BaseNode:
         signals.entering_task.send(sender=self.__class__, task=activation.task)
         
         if self.enter:
-            self.enter(**input)
+            self.enter(activation, **input)
 
     def on_leaving(self, activation, **input):
         signals.leaving_task.send(sender=self.__class__, task=activation.task)
         if self.leave:
-            self.leave(**input)
+            self.leave(activation, **input)
 
 class If(BaseNode):
     def __init__(self, predicate, sthen, selse, **options):
@@ -165,12 +165,13 @@ class If(BaseNode):
 
 class Branch(BaseNode):
     def __init__(self, default, **branches):
+        super().__init__(**branches)
         self.default = default
         self.branches = branches
     
     def activate(self, activation, **input):
         for branch, predicate in self.branches.items():
-            if predicate(**input):
+            if predicate(activation, **input):
                 activation.spawn_task(branch)
                 activation.done()
                 return
@@ -203,14 +204,15 @@ class UserAction(BaseNode):
             plugin(self)
 
     def submit(self, activation, data, **options):
-        form = self.form_class(data)
-        
+        form = self.form_class(
+            data, 
+            instance=activation.task.process.get_context()
+        )
+        form.task = activation.task
+
         if form.is_valid():
             context = form.save()
             activation.submitted()
-            
-            if 'user' in options:
-                activation.task.assigned_to = options['user']
 
             return context
         else:

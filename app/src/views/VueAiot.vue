@@ -1,11 +1,9 @@
 <script setup lang="ts">
-
-import { RECUPERER_AIOT } from '../graphql/VueAiot.js';
-
+import { RECUPERER_AIOT as query } from '@/graphql/VueAiot.js';
 </script>
 
 <template>
-    <ApolloQuery :query="RECUPERER_AIOT" :variables="{id: $route.params.id}">
+    <ApolloQuery :query="query" :variables="{id: $route.params.id}">
         <template v-slot="{ result: { loading, error, data }, query }">
             <div v-if="data">
                 <h1>{{ data.aiot.nom }} à {{ data.aiot.commune.nom }}</h1>

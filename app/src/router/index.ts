@@ -1,8 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import VueAiots from '../views/VueAiots.vue'
-import VueAiot from '../views/VueAiot.vue'
-import VueSuivisInspections from '../views/VueSuivisInspections.vue'
+import HomeView from '@/views/HomeView.vue'
+import VueAiots from '@/views/VueAiots.vue'
+import VueAiot from '@/views/VueAiot.vue'
+import VueSuivisInspections from '@/views/VueSuivisInspections.vue'
+import VueTaches from '@/views/VueTaches.vue'
+import VueTache from '@/views/VueTache.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -11,6 +13,16 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView
+    },
+    {
+      path: '/taches',
+      name: 'taches',
+      component: VueTaches
+    },
+    {
+      path: '/taches/:id',
+      name: 'detail_tache',
+      component: VueTache
     },
     {
       path: '/aiots',

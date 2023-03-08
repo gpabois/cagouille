@@ -6,3 +6,4 @@ class WorkflowsConfig(AppConfig):
     name = 'workflows'
     def ready(self):
         from . import flows
+        from . import receivers

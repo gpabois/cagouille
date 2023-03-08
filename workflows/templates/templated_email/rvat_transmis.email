@@ -1,0 +1,22 @@
+{% block subject %}
+[CHRONO][RVAT]{% if context.aiot %}[{{ context.aiot }}]{% endif %} RVAT transmis
+{% endblock %}
+{% block html %}
+  <p>Bonjour {{ user }},</p>
+
+  <p>
+    Votre RVAT <i>{{context.nom}}</i>{% if context.aiot %}, 
+    pour <a href="https://gunenv.din.developpement-durable.gouv.fr/aiot/?searchTerms={{context.aiot.code}}">{{ context.aiot.nom }}</a> (Code AIOT: {{ context.aiot.code }}) à {{ context.aiot.commune }}{% endif %}
+    a été transmis par {{ task.done_by }}.
+  </p>
+
+  <p>
+    {% if context.uri_definitif %}
+    Vous pouvez retrouver le document approuvé <a href="{{context.uri_definitif}}">ici</a>.
+    {% endif %}
+  </p>
+
+  <p>Cordialement,</p>
+
+  <p>L'assistant virtuel</p>
+{% endblock %}

@@ -26,8 +26,10 @@ django-js-asset==2.0.0
 django-jsonstore==0.5.1
 django-mptt==0.14.0
 django-polymorphic==3.1.0
+django-render-block==0.9.2
 django-reversion==5.0.4
 django-tables2==2.5.1
+django-templated-email==3.0.1
 django-tree-queries==0.14.0
 django-viewflow==1.11.0
 dramatiq==1.14.1

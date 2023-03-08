@@ -66,7 +66,10 @@ class Engine:
             flow    = self.flow(task.process.flow_class)
             context = flow.context(task.process)
             node    = flow.node(task.step)
-            data['task'] = task
+
+            if "user" in options:
+                task.done_by = options['user']
+                del options['user']
 
             with node_activation(task, self, **options) as activation:
                 return node.submit(
