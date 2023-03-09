@@ -17,10 +17,13 @@ function filterUpdated(filters) {}
 
 const columns = [{
     id: 'id',
-    name: 'id',
-    value: (edge) => edge.node.id,
-    sortable: true
+    name: '#',
+    value: (edge) => edge.node.id
 }, {
+    id: 'flowClass',
+    name: 'Type de flux',
+    value: (edge) => edge.node.process.flowClass
+},{
     id: 'step',
     name: 'Etape',
     value: (edge) => edge.node.step,
@@ -28,6 +31,10 @@ const columns = [{
     id: 'status',
     name: 'Statut',
     value: (edge) => edge.node.status
+}, {
+    id: 'message',
+    name: 'Message',
+    value: (edge) => edge.node.log
 }]
 </script>
 
@@ -35,19 +42,11 @@ const columns = [{
     <div class="container-fluid m-3">
         <ApolloQuery :query="query" :variables="{...filters, orderBy}">
             <template v-slot="{ result: { loading, error, data }, query, isLoading  }">
-                <h1>
-                    Tâches
-                </h1>
-            
-                <div class="container mb-3">
-                    <form class="form-inline">
-                    </form>
-                </div>
-        
+                <h1>Tâches</h1>
                 <div v-if="isLoading" class="container spinner-border text-center" role="status">
                     <span class="sr-only"></span>
                 </div>
-                <div v-if="data.tasks.edges">
+                <div v-if="data && data.tasks.edges">
                     <Table                     
                         :rows="data.tasks.edges" 
                         :columns="columns"
@@ -55,7 +54,7 @@ const columns = [{
                         @filter="filterUpdated"    
                     >
                         <template v-slot:row_id="{row}">
-                            <RouterLink :to="{name: 'detail_tache', params: {id: row.node.id}}">
+                            <RouterLink :to="{name: 'tache', params: {id: row.node.id}}">
                                 {{ row.node.id }}
                             </RouterLink>
                         </template>

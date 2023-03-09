@@ -29,6 +29,19 @@ defineProps<{
                 <RouterLink :to="{name: 'suivis_inspections'}">Inspections</RouterLink>
               </li>
               <li><a class="dropdown-item" href="#">Instructions</a></li>
+              <li><a class="dropdown-item" href="#">Sanctions</a></li>
+              <li><a class="dropdown-item" href="#">Plaintes</a></li>
+            </ul>
+          </li>
+  
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Flux de travail
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+              <li class="dropdown-item">
+                <RouterLink :to="{name: 'rvats'}">RVAT</RouterLink>
+              </li>
             </ul>
           </li>
         </ul>

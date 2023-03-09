@@ -5,6 +5,7 @@ import VueAiot from '@/views/VueAiot.vue'
 import VueSuivisInspections from '@/views/VueSuivisInspections.vue'
 import VueTaches from '@/views/VueTaches.vue'
 import VueTache from '@/views/VueTache.vue'
+import VueRvats from '@/views/VueRvats.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,8 +22,13 @@ const router = createRouter({
     },
     {
       path: '/taches/:id',
-      name: 'detail_tache',
+      name: 'tache',
       component: VueTache
+    },
+    {
+      path: '/rvats',
+      name: 'rvats',
+      component: VueRvats
     },
     {
       path: '/aiots',

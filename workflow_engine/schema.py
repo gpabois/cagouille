@@ -7,6 +7,7 @@ from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_plus import GlobalID
 from django.db.models import Q
 from django.forms import Form
+from graphql_relay import from_global_id
 
 from . import tasks
 from . import models
@@ -50,6 +51,9 @@ def __create_mutation(flow):
         class Arguments:
             pass
 
+        class Meta:
+            name = "Create{}".format(flow.name.capitalize())
+
         ok = Boolean()
         process = Field(Process)
         task = Field(Task)
@@ -67,8 +71,9 @@ def __create_mutation(flow):
 
     return CreateFlow
 
-def flow_mutation(flow, context_type):
+def flow_mutation(flow, context_type, **fields):
     fields = {
+        **fields,
         'create': __create_mutation(flow).Field()
     }
     
@@ -92,13 +97,12 @@ def __as_task_mutation(flow, node, context_type):
             
         class Meta:
             form_class = node.form_class
-            name = type_name
+            name = "{}{}".format(type_name.capitalize(), flow.name.capitalize())
        
         @classmethod
         def mutate_and_get_payload(cls, root, info, **data):
             form = cls.get_form(root, info, **data)
-            print(data)
-            task = models.Task.objects.get(pk=data['task'])
+            task = models.Task.objects.get(pk=from_global_id(data['task'])[1])
             options = {}
             
             if getattr(info.context, 'user'):
@@ -110,11 +114,10 @@ def __as_task_mutation(flow, node, context_type):
                 form = result
                 errors = ErrorType.from_errors(form.errors)
                 _set_errors_flag_to_context(info)
-
                 return cls(errors=errors, ok=False, **form.data)
             else:
                 context = result
-                cls(context=context, ok=False)
+                return cls(errors=[], context=context, ok=True)
 
     return TaskMutation
 

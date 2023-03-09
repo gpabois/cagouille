@@ -18,9 +18,9 @@ class Mutation(AiotMutation, SuivisMutation, WorkflowEngineMutation, WorkflowsMu
     debug = graphene.Field(DjangoDebug, name='debug')
 
 class ExceptionMiddleware(object):
-    def resolve(self, next, root, info, **args):
+    def resolve(self, next, root, info, *args, **kwargs):
         try:
-            return next(root, info, **args)   
+            return next(root, info, *args, **kwargs)   
         except Exception as e:
             import traceback
             traceback.print_exc()

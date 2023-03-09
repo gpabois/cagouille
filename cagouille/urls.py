@@ -23,6 +23,6 @@ from .schema import ExceptionMiddleware
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
-    path("graphql", csrf_exempt(PrivateGraphQLView.as_view(graphiql=True, middleware=[ExceptionMiddleware()]))),
+    path("graphql", csrf_exempt(PrivateGraphQLView.as_view(graphiql=True, middleware=[]))),
     path('accounts/', include('django.contrib.auth.urls'))
 ] + static('assets/', document_root="web/static/assets") + [path('', include('web.urls'))]

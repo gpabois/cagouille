@@ -34,9 +34,9 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
 # Email
-EMAIL_BACKEND = env.str('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-
-if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
+CELERY_EMAIL_BACKEND  = env.str('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_BACKEND = 'djcelery_email.backends.CeleryEmailBackend'
+if CELERY_EMAIL_BACKEND  == "django.core.mail.backends.smtp.EmailBackend":
     EMAIL_HOST = env.str('EMAIL_HOST')
     EMAIL_PORT = env.str('EMAIL_PORT')
     EMAIL_HOST_USER = env.str('EMAIL_HOST_USER')
@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'templated_email',
     'django_celery_results',
+    'djcelery_email',
     'aiots',
     'workflow_engine',
     'graphene_django',
