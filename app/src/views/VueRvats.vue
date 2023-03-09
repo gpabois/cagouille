@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, reactive} from 'vue'
+import {ref, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMutation } from '@vue/apollo-composable'
 import { SUPPRIMER, CREER, RECUPERER_RVATS as query } from '@/graphql/Rvats.js';
@@ -58,25 +58,24 @@ rvatCree(function ({data}) {
         }
     })
 });
-
 </script>
 
 <template>
     <div class="container-fluid m-3">
         <button class="btn btn-primary" @click="creerRvat()">Créer RVAT</button>
-        <ApolloQuery :query="query" :variables="{...filters, orderBy}">
-            <template v-slot="{ result: { loading, error, data }, query: {refetch}, isLoading  }">
+        <ApolloQuery :query="query" :variables="{...filters, orderBy}" :pollInterval="100">
+            <template v-slot="{ result: { loading, error, data }, query: {refetch} }">
                 <h1>RVATS</h1>
                    
-                <div v-if="isLoading" class="container spinner-border text-center" role="status">
+                <div v-if="loading" class="container spinner-border text-center" role="status">
                     <span class="sr-only"></span>
                 </div>
                 <div v-if="data && data.rvats.edges">
                     <Table :rows="data.rvats.edges" :columns="columns" @sort="sortUpdated" @filter="filterUpdated">
                         <template v-slot:row_actions="{row}">
-                            <ApolloMutation :mutation="SUPPRIMER" :variables="{id: row.node.id}" @done="refetch()">
-                                <template v-slot="{mutate: supprimerRvat, loading}">
-                                    <button class="btn btn-danger" :disabled="loading" @click="supprimerRvat()">
+                            <ApolloMutation :mutation="SUPPRIMER" :variables="{id: row.node.id}" :refetchQueries="[{query, variables: {...filters, orderBy}}]">
+                                <template v-slot="{mutate: supprimerRvat, loading: deleting, error}">
+                                    <button class="btn btn-danger" :disabled="deleting" @click="supprimerRvat({id: row.node.id})">
                                         Supprimer
                                     </button>
                                 </template>
