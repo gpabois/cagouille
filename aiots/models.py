@@ -5,7 +5,7 @@ from mptt.models import MPTTModel, TreeForeignKey
 from polymorphic.models import PolymorphicModel
 
 # Create your models here.
-TreeForeignKey(Group, on_delete=models.CASCADE, blank=True, null=True).contribute_to_class(Group, 'parent')
+# TreeForeignKey(Group, on_delete=models.CASCADE, blank=True, null=True).contribute_to_class(Group, 'parent')
 models.PositiveIntegerField(default=0, editable=False, db_index=True).contribute_to_class(Group, 'level')
 models.PositiveIntegerField(default=0, editable=False, db_index=True).contribute_to_class(Group, 'lft')
 models.PositiveIntegerField(default=0, editable=False, db_index=True).contribute_to_class(Group, 'rght')
