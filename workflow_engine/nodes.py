@@ -171,7 +171,7 @@ class Branch(BaseNode):
         exclude = ['enter', 'leave']
         self.default = default
         branches = {}
-        for k, v in branches.items():
+        for k, v in kwargs.items():
             if k not in exclude:
                 branches[k] = v
         self.branches = branches
