@@ -109,11 +109,13 @@ class BaseNode:
     def __init__(self, **options):
         if 'enter' in options:
             self.enter = options['enter']
+            del options['enter']
         else:
             self.enter = None
         
         if 'leave' in options:
             self.leave = options['leave']
+            del options['leave']
         else:
             self.leave = None
 
@@ -164,14 +166,19 @@ class If(BaseNode):
         activation.done()
 
 class Branch(BaseNode):
-    def __init__(self, default, **branches):
-        super().__init__(**branches)
+    def __init__(self, default, **kwargs):
+        super().__init__(**kwargs)
+        exclude = ['enter', 'leave']
         self.default = default
+        branches = {}
+        for k, v in branches.items():
+            if k not in exclude:
+                branches[k] = v
         self.branches = branches
     
-    def activate(self, activation, **input):
+    def activate(self, activation, context, **input):
         for branch, predicate in self.branches.items():
-            if predicate(activation, **input):
+            if predicate(activation, context, **input):
                 activation.spawn_task(branch)
                 activation.done()
                 return

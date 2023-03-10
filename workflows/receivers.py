@@ -1,24 +1,15 @@
 from django.dispatch import receiver
 from django.conf import settings
 from templated_email import send_templated_mail
+from django.conf import settings
+
 from . import signals
 
-@receiver(signals.rvat_a_preparer)
-def notifier_preparer_rvat(sender, task, **kwargs):
-    user = task.assigned_to_user
-    context = task.process.get_context()
-    
-    if user.email:
-        send_templated_mail(
-            template_name="rvat_a_preparer",
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=[user.email],
-            context={
-                'user': user,
-                'task': task,
-                'context': context
-            }
-        )
+def get_task_url(task): 
+    return "http://%s/taches/%s" % (
+        settings.DOMAIN_NAME,
+        task.global_id
+    ) 
 
 @receiver(signals.rvat_a_verifier)
 def notifier_verifier_rvat(sender, task, **kwargs):
@@ -35,6 +26,7 @@ def notifier_verifier_rvat(sender, task, **kwargs):
                     context={
                         'user': user,
                         'task': task,
+                        'task_url': get_task_url(task),
                         'context': context
                     }
                 )
@@ -51,6 +43,7 @@ def notifier_rejet_verification_rvat(sender, task, **kwargs):
             context={
                 'user': context.redacteur,
                 'task': task,
+                'task_url': get_task_url(task),
                 'context': context
             }
         )
@@ -68,6 +61,7 @@ def notifier_verifie(sender, task, **kwargs):
             context={
                 'user': context.redacteur,
                 'task': task,
+                'task_url': get_task_url(task),
                 'context': context
             }
         )
@@ -88,6 +82,7 @@ def notifier_approuver_rvat(sender, task, **kwargs):
                     context={
                         'user': user,
                         'task': task,
+                        'task_url': get_task_url(task),
                         'context': context
                     }
                 )
@@ -104,6 +99,7 @@ def notifier_rejet_approbation_rvat(sender, task, **kwargs):
             context={
                 'user': context.redacteur,
                 'task': task,
+                'task_url': get_task_url(task),
                 'context': context
             }
         )
@@ -121,6 +117,7 @@ def notifier_approuve(sender, task, **kwargs):
             context={
                 'user': context.redacteur,
                 'task': task,
+                'task_url': get_task_url(task),
                 'context': context
             }
         )
@@ -140,6 +137,7 @@ def notifier_transmettre_rvat(sender, task, **kwargs):
                     context={
                         'user': user,
                         'task': task,
+                        'task_url': get_task_url(task),
                         'context': context
                     }
                 )
@@ -156,6 +154,7 @@ def notifier_transmis_rvat(sender, task, **kwargs):
             context={
                 'user': context.redacteur,
                 'task': task,
+                'task_url': get_task_url(task),
                 'context': context
             }
         )

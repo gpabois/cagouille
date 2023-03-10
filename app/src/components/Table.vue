@@ -102,51 +102,53 @@ function filterRemoveIn(col, element) {
 
 </script>
 <template>
-    <table class="table" v-if="props.rows">
-        <thead>
-            <th v-for="col in props.columns">
-                {{ col.name }} 
+    <div class="table-responsive-md">
+        <table class="table" v-if="props.rows">
+            <thead>
+                <th v-for="col in props.columns">
+                    {{ col.name }} 
 
-                <span v-if="col.sortable" @click="sortUpdated(col)">
-                    <i class="bi bi-sort-alpha-down" v-if="sortState(col) == 'asc'"></i>
-                    <i class="bi bi-sort-alpha-up" v-else-if="sortState(col) == 'desc'"></i>
-                    <i class="bi bi-sort-up-alt" v-else></i>
-                </span>
-                
-                <div v-if="col.filter">
-                    <i class="bi bi-three-dots"></i>
-                    <div v-if="col.filter.type == 'in'">
-                        <AutocompleteQuery 
-                            v-if="col.filter.values.type == 'query'"
-                            :query="col.filter.values.query"
-                            :elements="col.filter.values.elements"
-                            :transform="col.filter.transform"
-                            @input="element => filterAddIn(col, element)"
-                        />
-                        <ul class="list-group list-group-flush">
-                            <li 
-                                v-for="element in filterSelectedIn(col)"
-                                class="list-group-item list-group-item-action" >
-                                <input 
-                                    class="form-check-input me-1" 
-                                    type="checkbox" 
-                                    checked
-                                    @click="filterRemoveIn(col, element)" />
-                                {{ element.label }}
-                            </li>
-                        </ul>
+                    <span v-if="col.sortable" @click="sortUpdated(col)">
+                        <i class="bi bi-sort-alpha-down" v-if="sortState(col) == 'asc'"></i>
+                        <i class="bi bi-sort-alpha-up" v-else-if="sortState(col) == 'desc'"></i>
+                        <i class="bi bi-sort-up-alt" v-else></i>
+                    </span>
+                    
+                    <div v-if="col.filter">
+                        <i class="bi bi-three-dots"></i>
+                        <div v-if="col.filter.type == 'in'">
+                            <AutocompleteQuery 
+                                v-if="col.filter.values.type == 'query'"
+                                :query="col.filter.values.query"
+                                :elements="col.filter.values.elements"
+                                :transform="col.filter.transform"
+                                @input="element => filterAddIn(col, element)"
+                            />
+                            <ul class="list-group list-group-flush">
+                                <li 
+                                    v-for="element in filterSelectedIn(col)"
+                                    class="list-group-item list-group-item-action" >
+                                    <input 
+                                        class="form-check-input me-1" 
+                                        type="checkbox" 
+                                        checked
+                                        @click="filterRemoveIn(col, element)" />
+                                    {{ element.label }}
+                                </li>
+                            </ul>
+                        </div>
                     </div>
-                </div>
-            </th>
-        </thead>
-        <tbody>
-            <tr v-for="row in props.rows">
-                <td v-for="col in props.columns">
-                    <slot :name="`row_${col.id}`" :row="row" :value="col.value(row)">
-                        {{ col.value(row) }}
-                    </slot>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+                </th>
+            </thead>
+            <tbody>
+                <tr v-for="row in props.rows">
+                    <td v-for="col in props.columns">
+                        <slot :name="`row_${col.id}`" :row="row" :value="col.value(row)">
+                            {{ col.value(row) }}
+                        </slot>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </template>

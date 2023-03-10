@@ -1,15 +1,12 @@
 <script setup lang="ts">
 
 import { RECUPERER_TACHE as query } from '@/graphql/Taches.js';
-
-import RvatStart from '@/components/taches/Rvat/Start.vue';
 import RvatVerifier from '@/components/taches/Rvat/Verifier.vue';
 import RvatApprouver from '@/components/taches/Rvat/Approuver.vue';
 import RvatTransmettre from '@/components/taches/Rvat/Transmettre.vue';
 
 const router = {
-    Rvat: {
-        start: RvatStart,
+    rvat: {
         verifier: RvatVerifier,
         approuver: RvatApprouver,
         transmettre: RvatTransmettre
@@ -23,21 +20,27 @@ function getComponent(task) {
     return null;
 }
 
+async function tacheExecutee(query) {
+    console.log("Tâche éxecutée");
+    await query.refetch();
+}
+
 </script>
 
 <template>
     <ApolloQuery :query="query" :variables="{id: $route.params.id}">
-        <template v-slot="{ result: { loading, error, data }, query: {refetch} }">
+        <template v-slot="{ result: { loading, error, data }, query }">
             <div v-if="data">
-                <template v-if="getComponent(data.task) && data.task.status == 'STALL'">
+                <template v-if="getComponent(data.task) !== null && data.task.status == 'STALL'">
                     <component 
                         :is="getComponent(data.task)" 
                         :task="data.task" 
-                        @done="refetch()"/>
+                        @done="tacheExecutee(query)"/>
                 </template>
                 <template v-else>
                     <h1>Tâche {{ data.task.id }}</h1>
-
+                    Flux: {{ data.task.process.flowClass }}
+                    Etape: {{ data.task.step }}
                     Statut: {{ data.task.status }}
                 </template>
             </div>

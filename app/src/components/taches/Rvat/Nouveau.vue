@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import {ref, defineProps, defineEmits} from 'vue';
-import {START as MUTATION} from '@/graphql/Rvats.js';
+import {CREER as MUTATION} from '@/graphql/Rvats.js';
 import AutocompleteGroupe from '@/components/fields/AutocompleteGroupe.vue'
 import AutocompleteAiot from '@/components/fields/AutocompleteAiot.vue';
-
-var props = defineProps(['task']);
-var emit = defineEmits(['done']);
+var emit = defineEmits(['created']);
 var input = ref({
-    task: props.task.id,
     aiot: null,
     uriTravail: null,
     verificateur: null,
@@ -19,9 +16,9 @@ var input = ref({
 </script>
 
 <template>
-    <div class="container m-3">
-        <h2>Préparer le RVAT</h2>
-        <ApolloMutation :mutation="MUTATION" :variables="{input}" @done="emit('done', $event)">
+    <div>
+        <h2>Créer nouveau RVAT</h2>
+        <ApolloMutation :mutation="MUTATION" :variables="{input}" @done="emit('created', $event)">
             <template v-slot="{mutate, loading, error}">
                 {{ error }}
                 <div class="form-group">
@@ -64,7 +61,7 @@ var input = ref({
                     <AutocompleteGroupe v-model="input.administratif"/>
                 </div>
 
-                <button class="btn btn-primary" @click="mutate()">
+                <button class="btn btn-primary" :disabled="loading" @click="mutate()">
                     Transmettre
                 </button>
             </template>

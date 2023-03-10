@@ -1,5 +1,6 @@
-from workflow_engine.flows import Workflow, Self
+from workflow_engine.flows import Workflow, Self, FormBasedContextFactory
 from workflow_engine import nodes
+import datetime
 
 from . import models
 from . import forms
@@ -10,16 +11,15 @@ def poursuivre(etape):
         return not getattr(context, etape)
     return wrapper
 
+def aller_vers_cloture_procedure_gun(activation, context, **kwargs):
+    return context.lien_procedure_gun is not None
+
 class Rvat(Workflow):
     name = 'rvat'
     context_class=models.Rvat
+    context_factory = FormBasedContextFactory(forms.FormulairePreparationRvat)
 
-    start = nodes.UserAction(
-        forms.FormulairePreparationRvat,
-        next="verifier",
-        enter=Self.enter_preparation,
-        leave=Self.leave_preparation
-    )
+    start = nodes.Branch("verifier", leave=Self.leave_start)
 
     verifier = nodes.UserAction(
         forms.FormulaireVerificateurRvat,
@@ -52,18 +52,19 @@ class Rvat(Workflow):
         enter=Self.enter_transmettre,
         leave=Self.leave_transmettre
     )
-    
-    @staticmethod
-    def enter_preparation(activation, context, **input):
-        signals.rvat_a_preparer.send(sender="RVAT", task=activation.task)
+
+    verifier_cloture = nodes.Branch(
+        'end'
+    )
 
     @staticmethod
-    def leave_preparation(activation, context, **input):
-        context.redacteur = activation.task.assigned_to_user
+    def leave_start(activation, context, **input):
+        context.redacteur = activation.task.process.created_by
         context.save()
 
     @staticmethod
     def enter_verifier(activation, context, **input):
+        activation.task.deadline = context.date_limite_verification
         activation.task.assigned_to_group = context.verificateur
         signals.rvat_a_verifier.send(sender="RVAT", task=activation.task)
 
@@ -76,6 +77,7 @@ class Rvat(Workflow):
 
     @staticmethod
     def enter_approuver(activation, context, **input):
+        activation.task.deadline = context.date_limite_approbation
         activation.task.assigned_to_group = context.approbateur
         signals.rvat_a_approuver.send(sender="RVAT", task=activation.task)
 
@@ -100,6 +102,9 @@ class Rvat(Workflow):
     @staticmethod
     def leave_transmettre(activation, context, **input):
          signals.rvat_transmis.send(sender="RVAT", task=activation.task)
+         context.transmis = True
+         context.transmis_le = datetime.date.today()
+         context.save()
 
 
 

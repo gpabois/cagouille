@@ -1,4 +1,4 @@
-{% block subject %}[CHRONO][RVAT]{% if context.aiot %}[{{ context.aiot }}]{% endif %} RVAT non vérifié{% endblock %}
+{% block subject %}[CHRONO][RVAT]{% if context.aiot %}[{{ context.aiot }}]{% endif %} RVAT "{{ context.nom }}" non vérifié{% endblock %}
 {% block html %}
   <p>Bonjour {{ user }},</p>
 

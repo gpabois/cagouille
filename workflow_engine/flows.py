@@ -37,11 +37,41 @@ class WorkflowMeta(type):
         
         return cls
 
+class SimpleContextFactory:
+    requires_form_submission = False
+    
+    def __call__(self, context_class, result, process, **kwargs):
+        context = context_class(process=process)
+        context.save()
+        result.set_context(context)
+
+class FormBasedContextFactory:
+    requires_form_submission = True
+
+    def __init__(self, form_class):
+        self.form_class = form_class
+
+    def __call__(self, context_class, data, process, result, **kwargs):
+        form = self.form_class(**data)
+        
+        if form.is_valid():
+            context = form.save(commit=False)
+            context.process = process
+            context.save()
+            result.set_context(context)
+        else:
+            result.set_errors(form.errors)
+        
 class Workflow(metaclass=WorkflowMeta, abstract=True):
     context_class = None
+    context_factory = SimpleContextFactory()
+    
     steps = {
         'end': End()
     }
+
+    def new_context(self, *args):
+        return self.context_factory_class(self.context_class, *args)
 
     @classmethod
     def get_name(cls):

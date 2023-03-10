@@ -4,6 +4,7 @@ import VueAiots from '@/views/VueAiots.vue'
 import VueAiot from '@/views/VueAiot.vue'
 import VueSuivisInspections from '@/views/VueSuivisInspections.vue'
 import VueTaches from '@/views/VueTaches.vue'
+import VueMesTaches from '@/views/VueMesTaches.vue'
 import VueTache from '@/views/VueTache.vue'
 import VueRvats from '@/views/VueRvats.vue'
 
@@ -19,6 +20,11 @@ const router = createRouter({
       path: '/taches',
       name: 'taches',
       component: VueTaches
+    },
+    {
+      path: '/moi/taches',
+      name: 'mes_taches',
+      component: VueMesTaches
     },
     {
       path: '/taches/:id',

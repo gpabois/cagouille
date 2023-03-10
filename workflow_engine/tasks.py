@@ -14,5 +14,5 @@ def activate(task_id, **options):
 def submit(task, data, **options):
     return ENGINE.submit(task, data, **options)
 
-def spawn_flow(flow, context, **options):
-    return ENGINE.spawn_process(flow, context, **options)
+def spawn_flow(flow, context, **kwargs):
+    return ENGINE.spawn_flow(flow, **kwargs)

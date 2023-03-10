@@ -1,5 +1,5 @@
 {% block subject %}
-[CHRONO][RVAT]{% if context.aiot %}[{{ context.aiot }}]{% endif %} RVAT transmis
+[CHRONO][RVAT]{% if context.aiot %}[{{ context.aiot }}]{% endif %} RVAT "{{ context.nom }}" transmis
 {% endblock %}
 {% block html %}
   <p>Bonjour {{ user }},</p>

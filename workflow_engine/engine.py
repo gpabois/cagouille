@@ -2,35 +2,67 @@ from typing  import Type
 from django.db import transaction
 from .models import Task, Process
 
+class SpawnFlowResult:
+    def __init__(self):
+        self.errors = None
+        self.context = None
+
+    @property
+    def is_ok(self):
+        return not self.errors
+    
+    def set_errors(self, errors):
+        self.errors = errors
+
+    def set_context(self, context):
+        self.context = context
+
+    def set_process(self, process):
+        self.process = process
+    
+    def set_task(self, task):
+        self.task = task
+
 class Engine:
     def __init__(self):
         self.flows = {}
 
     def register(self, cls):
-        self.flows[cls.__name__] = cls
+        self.flows[cls.get_name()] = cls
 
-    def flow(self, flow_class):
-        return self.flows[flow_class]
+    def flow(self, flow):
+        if isinstance(flow, str):
+            return self.flows[flow]
+        else:
+            if flow.get_name() not in self.flows:
+                self.register(flow)   
+            
+            return self.flow(flow.get_name())         
 
     def context(self, process):
         flow = self.flow(process.flow_class)
         return flow.context(process)        
     
-    def spawn_process(self, flow, context, **options):
-        if flow.__name__ not in self.flows:
-            self.register(flow)
+    def spawn_flow(self, flow, **kwargs):
+        result = SpawnFlowResult()
+        flow = self.flow(flow)
 
-        flow_class = flow.__name__
+        process = Process(flow_class=flow.get_name())
 
-        process = Process(flow_class=flow_class)
+        if "user" in kwargs:
+            process.created_by = kwargs['user']
+            
         process.save()
-        
-        context.process = process
-        context.save()
+        result.set_process(process)
 
-        return process, self.spawn_task('start', process, **options)
-    
-    def spawn_task(self, step, process, previous=None, **options):
+        flow.context_factory(context_class=flow.context_class, result=result, process=process, **kwargs)
+        
+        if result.is_ok:
+            self.spawn_task("start", process, result=result, **kwargs)
+        
+        return result
+            
+    def spawn_task(self, step, process, previous=None, **kwargs):
         from .tasks import activate
         
         flow = self.flow(process.flow_class)
@@ -38,25 +70,28 @@ class Engine:
         
         task = Task(process=process, step=step)
         
-        if "user" in options:
-            task.assigned_to_user = options['user']
-            del options['user']
+        if "user" in kwargs:
+            task.assigned_to_user = kwargs['user']
+            del kwargs['user']
             
         task.previous = previous
         task.save()
         
-        if "eager" in options:
-            activate(task.id, **options)
+        if "eager" in kwargs:
+            activate(task.id, eager=True)
         
         else:
             def on_commit():
-                job = activate.delay(task.id, **options)
+                job = activate.delay(task.id, eager=False)
                 task.current_job = job.task_id
                 task.save()
                 job.forget()
 
             transaction.on_commit(on_commit)
-            
+        
+        if "result" in kwargs:
+            kwargs['result'].set_task(task)
+
         return task
 
     def submit(self, task, data, **options):
@@ -74,6 +109,7 @@ class Engine:
             with node_activation(task, self, **options) as activation:
                 return node.submit(
                     activation=activation,
+                    context=context,
                     data=data
                 )
 

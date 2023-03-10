@@ -40,6 +40,9 @@ defineProps<{
             </a>
             <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
               <li class="dropdown-item">
+                <RouterLink :to="{name: 'mes_taches'}">Mes tâches</RouterLink>
+              </li>
+              <li class="dropdown-item">
                 <RouterLink :to="{name: 'rvats'}">RVAT</RouterLink>
               </li>
             </ul>

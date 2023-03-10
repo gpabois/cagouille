@@ -3,7 +3,6 @@ import {ref, reactive} from 'vue'
 import { useRouter } from 'vue-router'
 import query from '@/graphql/VueAiots.js';
 import Table from '@/components/Table.vue';
-import ExportCsvQuery from '@/components/ExportCsvQuery.vue'
 import { loadMoreMixin } from '../utils.js';
 
 const router = useRouter();
@@ -60,12 +59,9 @@ const columns = [{
 
 <template>
     <div class="container-fluid m-3">
-        <ExportCsvQuery :query="query" :variables="{...filters, orderBy}"/>
         <ApolloQuery :query="query" :variables="{...filters, orderBy}">
             <template v-slot="{ result: { loading, error, data }, query, isLoading  }">
-                <h1>
-                    AIOTS
-                </h1>
+                <h1>AIOTS</h1>
             
                 <div class="container mb-3">
                     <form class="form-inline">
@@ -104,10 +100,10 @@ const columns = [{
                     </form>
                 </div>
         
-                <div v-if="isLoading" class="container spinner-border text-center" role="status">
+                <div v-if="isLoading || loading" class="container spinner-border text-center" role="status">
                     <span class="sr-only"></span>
                 </div>
-                <div v-if="data.aiots.edges">
+                <div v-if="data && data.aiots.edges">
                     <Table                     
                         :rows="data.aiots.edges" 
                         :columns="columns"
@@ -133,7 +129,7 @@ const columns = [{
                     </Table>
                     <button class="btn btn-primary" @click="loadMore(query, data)" :disabled="!data.aiots.pageInfo.hasNextPage">Charger plus</button>
                 </div>
-                <div v-else>
+                <div v-else-if="!data && !isLoading">
                     No result :(
                 </div>
             </template>

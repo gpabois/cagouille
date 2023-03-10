@@ -9,14 +9,6 @@ var input = ref({
     verifie: null,
     commentaireVerificateur: null
 });
-
-var onDone = function($event: any) {
-    console.log($event);
-}
-
-var onError = function($event: any) {
-    console.log($event);
-}
 </script>
 
 <template>
@@ -25,12 +17,16 @@ var onError = function($event: any) {
         <ApolloMutation :mutation="MUTATION" :variables="{input}" @done="emit('done', $event)">
             <template v-slot="{mutate, loading, error, gqlError}">
                 <div v-if="error">{{ {...error} }}</div>
-                <div class="form-check">
-                    <label class="form-check-label">Vérifié ?</label>
-                    <input type="checkbox" id="checkbox" v-model="input.verifie" class="form-check-input">
+                <div class="form-check">                    
+                    <input type="radio" class="form-check-input"  v-model="input.verifie" v-bind:value="true"/>
+                    <label class="form-check-label">Vérifié</label>
                 </div>
-                
-                <div class="form-group mb-3" v-if="input.verifie">
+                <div class="form-check">
+                    <input type="radio" class="form-check-input" v-model="input.verifie" v-bind:value="false"/>
+                    <label class="form-check-label">A corriger</label>
+                </div>
+
+                <div class="form-group mb-3" v-if="input.verifie == false">
                     <label>Commentaire pour le rédacteur</label>
                     <textarea type="text" v-model="input.commentaireVerificateur" class="form-control">
                     </textarea>

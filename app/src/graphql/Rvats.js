@@ -1,15 +1,17 @@
 import gql from 'graphql-tag'
 
 export const CREER = gql`
-mutation CreerRvat {
+mutation CreerRvat($input: CreateRvatInput!) {
     rvat {
-        create {
-            task {
-                id
+        create(input: $input) {
+            ok,
+            errors {
+              field, 
+              messages
             }
         }
     }
-}
+}  
 `;
 
 export const SUPPRIMER = gql`
@@ -34,6 +36,8 @@ query RecupererRvats($cursor: String) {
                 reference,
                 verifie,
                 approuve,
+                transmis,
+                transmisLe,
                 verificateur { name },
                 approbateur { name },
                 aiot {
@@ -52,20 +56,6 @@ query RecupererRvats($cursor: String) {
         }
     }
 }
-`;
-
-export const START = gql`
-mutation Start($input: StartRvatInput!) {
-    rvat {
-        start(input: $input) {
-            ok,
-            errors {
-              field, 
-              messages
-            }
-        }
-    }
-}  
 `;
 
 export const VERIFIER = gql`

@@ -16,23 +16,26 @@ var input = ref({
         <h2>Approuver le RVAT</h2>
         <ApolloMutation :mutation="MUTATION" :variables="{input}" @done="emit('done', $event)">
             <template v-slot="{mutate, loading, error}">
-                <form>
-                    {{ error }}
-                    <div class="form-group">
-                        <label>Approuvé ?</label>
-                        <input type="checkbox" id="checkbox" v-model="input.approuve" class="form-control">
-                    </div>
-                    
-                    <div class="form-group" v-if="input.approuve">
-                        <label>Commentaire pour le rédacteur :</label>
-                        <textarea v-model="input.commentaireApprobateur" class="form-control">
-                        </textarea>
-                    </div>
+                {{ error }}
+                <div class="form-check">                    
+                    <input type="radio" class="form-check-input"  v-model="input.approuve" v-bind:value="true"/>
+                    <label class="form-check-label">Approuvé</label>
+                </div>
+                <div class="form-check">
+                    <input type="radio" class="form-check-input" v-model="input.approuve" v-bind:value="false"/>
+                    <label class="form-check-label">A corriger</label>
+                </div>
 
-                    <button class="btn btn-primary" @click="mutate()">
-                        Transmettre
-                    </button>
-                </form>
+                
+                <div class="form-group mb-3" v-if="input.approuve">
+                    <label>Commentaire pour le rédacteur :</label>
+                    <textarea v-model="input.commentaireApprobateur" class="form-control">
+                    </textarea>
+                </div>
+
+                <button class="btn btn-primary" @click="mutate()">
+                    Transmettre
+                </button>
             </template>
         </ApolloMutation>
     </div>

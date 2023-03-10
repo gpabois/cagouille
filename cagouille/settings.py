@@ -47,6 +47,7 @@ if CELERY_EMAIL_BACKEND  == "django.core.mail.backends.smtp.EmailBackend":
 
 # Application definition
 GEORISQUE_API_URL = env.str('GEORISQUE_API_URL', default='https://www.georisques.gouv.fr/api/v1')
+DOMAIN_NAME = env.str('DOMAIN_NAME', default='localhost')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

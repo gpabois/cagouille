@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import {ref, defineProps, defineEmits} from 'vue'
+import {ref, defineProps, defineEmits, watchEffect, reactive} from 'vue'
 import {TRANSMETTRE as MUTATION} from '@/graphql/Rvats.js'
-import AutocompleteGroupe from '@/components/fields/AutocompleteGroupe.vue'
-import AutocompleteAiot from '@/components/fields/AutocompleteAiot.vue';
 
 var props = defineProps(['task']);
 var emit = defineEmits(['done']);
-var input = ref({
+var input = reactive({
     task: props.task.id,
     reference: null,
     uriDefinitif: null
 })
+
+var uriFragment = ref(null)
+
+watchEffect(() => {
+    input.uriDefinitif = `file:///${uriFragment.value}`;
+});
 
 </script>
 <template>
@@ -18,22 +22,25 @@ var input = ref({
         <h2>Transmettre le RVAT</h2>
         <ApolloMutation :mutation="MUTATION" :variables="{input}" @done="emit('done', $event)">
             <template v-slot="{mutate, loading, error}">
-                <form>
                     {{ error }}
                     <div class="form-group">
                         <label>N° Chrono</label>
                         <input type="text" id="checkbox" v-model="input.reference" class="form-control">
                     </div>
                     
-                    <div class="form-group" v-if="input.approuve">
+                    <div class="form-group mb-3">
                         <label>Chemin vers le document en version définitive</label>
-                        <input type="text" v-model="input.uriDefinitif" class="form-control"/>
+                        <div class="input-group mb-2">
+                            <div class="input-group-prepend">
+                                <div class="input-group-text">file:///</div>
+                            </div>
+                            <input type="text" v-model="uriFragment" class="form-control"/>
+                        </div>
                     </div>
 
                     <button class="btn btn-primary" @click="mutate()">
                         Transmettre
                     </button>
-                </form>
             </template>
         </ApolloMutation>
     </div>

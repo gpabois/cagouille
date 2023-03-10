@@ -2,9 +2,15 @@ from django.db import models
 from django.contrib.auth.models import User, Group
 from celery.result import AsyncResult
 from graphql_relay.node.node import to_global_id
+import datetime
 
 class Process(models.Model):
+    created_at = models.DateField(auto_now_add=True)
+    closed_at = models.DateField(null=True)
+
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     flow_class = models.CharField(max_length=255)
+    
     status = models.CharField(max_length=20, default='init', choices=(
         ('init', 'Initialised'),
         ('running', 'Running'),
@@ -29,14 +35,21 @@ class Process(models.Model):
 
     def done(self):
         self.status = 'done'
+        self.closed_at = datetime.date.today()
 
 class Task(models.Model):
+    created_at = models.DateField(auto_now_add=True)
+    closed_at = models.DateField(null=True)
+
     done_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='tasks_done')
+
     assigned_to_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     assigned_to_group = models.ForeignKey(Group, on_delete=models.SET_NULL, null=True)
     
     process     = models.ForeignKey(Process, on_delete=models.CASCADE, related_name="tasks")
     subprocess  = models.ForeignKey(Process, on_delete=models.SET_NULL, null=True, related_name="supratasks")
+
+    deadline = models.DateField(null=True)
 
     step        = models.CharField(max_length=255)
     status      = models.CharField(max_length=20, default='init', choices=(
@@ -67,6 +80,7 @@ class Task(models.Model):
 
     def closed(self):
         self.closed = 'closed'
+        self.closed_at = datetime.date.today()
 
     def aborted(self):
         self.status = 'aborted'
