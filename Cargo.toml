@@ -1,0 +1,3 @@
+[workspace]
+members=["cagouille", "cagouille-macro"]
+resolver = "2"
