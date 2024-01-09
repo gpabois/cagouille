@@ -13,6 +13,7 @@ proc-macro-error = "1.0.4"
 proc-macro2 = "1.0.76"
 quote = "1.0.35"
 syn = "2.0.48"
+yalp = {path = "../yalp"}
 
 [dev-dependencies]
 cagouille = {path = "../cagouille"}

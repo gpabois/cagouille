@@ -65,6 +65,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.48",
+ "yalp",
 ]
 
 [[package]]
@@ -456,3 +457,7 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "yalp"
+version = "0.1.0"
