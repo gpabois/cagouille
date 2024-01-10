@@ -3,9 +3,11 @@ use std::vec;
 use lazy_static::lazy_static;
 
 use proc_macro2::Span;
-use yalp::{parser, symbol::{self, Symbol}};
+use syn::parse;
+use yalp::{parserrs, symbol::{self, Symbol}};
 
 use super::{lexer::VNodeToken, VElementAttributes, VNode, VElementNode, VElementAttribute, VChildrenNode};
+use crate::html::lexer::VNodeTokenType;
 
 #[derive(Clone, PartialEq, Debug)]
 enum VNodeParserSymbolType {
@@ -191,7 +193,7 @@ impl yalp::symbol::Symbol for VNodeParserSymbol {
 #[derive(Clone)]
 pub struct VNodeParser;
 
-impl yalp::parser::traits::Parser for VNodeParser {
+impl yalp::parserrs::traits::Parser for VNodeParser {
     type Error = syn::Error;
     type Symbol = VNodeParserSymbol;
     type Terminal = VNodeToken;
@@ -221,7 +223,7 @@ lazy_static!{
         Attr -> ident = lit
     */
 
-    static ref RULE_RUNNERS: parser::ParserRulesRunners<'static, VNodeParser> = parser::ParserRulesRunners::new()
+    static ref RULE_RUNNERS: parserrs::ParserRulesRunners<'static, VNodeParser> = parserrs::ParserRulesRunners::new()
     // 0: S' -> RootNode
     .add(&|stack| {
         let element: VElementNode = stack.try_pop_into::<VElementNode>().unwrap()?;
@@ -354,47 +356,124 @@ lazy_static!{
     }) 
     .to_owned();
     
-    static ref PARSER_TABLE: Vec<VNodeParserState> = {
-        vec![
-            // s0
-            VNodeParserState::new()
-            .action(VNodeTokenType::LeftAngle, VNodeParserStateActionOp::Shift(5))
+    static ref PARSER_TABLE: parserrs::ParserTable<VNodeParser> = parserrs::ParserTable::new()
+        // s0 
+        .add(|| parserrs::ParserState::new()
+            .shift(VNodeTokenType::LeftAngle, 5)
             .goto(VNodeParserSymbolType::RootNode, 1)
             .goto(VNodeParserSymbolType::Element, 2)
             .goto(VNodeParserSymbolType::OpenTag, 4)
-            .goto(VNodeParserSymbolType::SingleElement, 3)
-            .to_owned(),
-            // s1
-            VNodeParserState::new()
-            .action(VNodeTokenType::EOS, VNodeParserStateActionOp::Accept)
-            .to_owned(),
-            // s2
-            VNodeParserState::new()
-            .action(VNodeTokenType::EOS, VNodeParserStateActionOp::Reduce(1))
-            .to_owned(),
-            // s3
-            VNodeParserState::new()
-            .action(VNodeTokenType::EOS, VNodeParserStateActionOp::Reduce(2))
-            .to_owned(),
-            // s4
-            VNodeParserState::new()
-            .action(VNodeTokenType::LeftAngle, VNodeParserStateActionOp::Shift(15))
-            .action(VNodeTokenType::ClosingLeftAngle, VNodeParserStateActionOp::Shift(9))
-            .action(VNodeTokenType::Block, VNodeParserStateActionOp::Shift(11))
-            .action(VNodeTokenType::Lit, VNodeParserStateActionOp::Shift(12))
+            .goto(VNodeParserSymbolType::SingleTag, 3)
+            .to_owned()
+        )
+        // s1
+        .add(|| parserrs::ParserState::new()
+            .accept(VNodeTokenType::EOS)
+            .to_owned()
+        )
+        // s2
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::EOS, 1)
+            .to_owned()
+        )
+        // s3
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::EOS, 2)
+            .to_owned()
+        )
+        // s4
+        .add(|| parserrs::ParserState::new()
+            .shift(VNodeTokenType::LeftAngle, 15)
+            .shift(VNodeTokenType::ClosingLeftAngle, 9)
+            .shift(VNodeTokenType::Block, 11)
+            .shift(VNodeTokenType::Lit, 12)
             .goto(VNodeParserSymbolType::Element, 10)
             .goto(VNodeParserSymbolType::OpenTag, 14)
             .goto(VNodeParserSymbolType::CloseTag, 7)
-            .goto(VNodeParserSymbolType::SingleElement, 13)
+            .goto(VNodeParserSymbolType::SingleTag, 13)
             .goto(VNodeParserSymbolType::Children, 6)
             .goto(VNodeParserSymbolType::Node, 8)
-            .to_owned(),
-            // s5
-            VNodeParserState::new()
-            .action(VNodeTokenType::Ident, VNodeParserStateActionOp::Shift(16))
             .to_owned()
-            // s6
-            
-        ]
-    };
+        )
+        // s5
+        .add(|| parserrs::ParserState::new()
+            .shift(VNodeTokenType::Ident, 16)
+            .to_owned()
+        )
+        // s6
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::LeftAngle, 15)
+            .reduce(VNodeTokenType::ClosingLeftAngle, 9)
+            .shift(VNodeTokenType::Block, 11)
+            .shift(VNodeTokenType::Lit, 12)
+            .goto(VNodeParserSymbolType::Element, 10)
+            .goto(VNodeParserSymbolType::OpenTag, 14)
+            .goto(VNodeParserSymbolType::CloseTag, 7)
+            .goto(VNodeParserSymbolType::SingleTag, 13)
+            .goto(VNodeParserSymbolType::Node, 18)
+            .to_owned()
+        )
+        // s7
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::EOS, 4)
+            .to_owned()
+        ) 
+        // s8
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::LeftAngle, 11)
+            .reduce(VNodeTokenType::ClosingLeftAngle, 11)
+            .reduce(VNodeTokenType::Block, 11)
+            .reduce(VNodeTokenType::Lit, 11)
+            .to_owned()
+        )
+        // s9
+        .add(|| parserrs::ParserState::new()
+            .shift(VNodeTokenType::Ident, 19)
+            .to_owned()
+        )
+        // s10
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::LeftAngle, 12)
+            .reduce(VNodeTokenType::ClosingLeftAngle, 12)
+            .reduce(VNodeTokenType::Block, 12)
+            .reduce(VNodeTokenType::Lit, 12)
+            .to_owned()
+        )
+        // s11
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::LeftAngle, 13)
+            .reduce(VNodeTokenType::ClosingLeftAngle, 13)
+            .reduce(VNodeTokenType::Block, 13)
+            .reduce(VNodeTokenType::Lit, 13)
+            .to_owned()
+        )      
+        // s12
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::LeftAngle, 14)
+            .reduce(VNodeTokenType::ClosingLeftAngle, 14)
+            .reduce(VNodeTokenType::Block, 14)
+            .reduce(VNodeTokenType::Lit, 14)
+            .to_owned()
+        )
+        // s13
+        .add(|| parserrs::ParserState::new()
+            .reduce(VNodeTokenType::LeftAngle, 2)
+            .reduce(VNodeTokenType::ClosingLeftAngle, 2)
+            .reduce(VNodeTokenType::Block, 2)
+            .reduce(VNodeTokenType::Lit, 2)
+            .to_owned()
+        )
+        // s14
+        .add(|| parserrs::ParserState::new()
+            .shift(VNodeTokenType::LeftAngle, 15)
+            .shift(VNodeTokenType::ClosingLeftAngle, 22)
+            .shift(VNodeTokenType::Block, 11)
+            .shift(VNodeTokenType::Lit, 12)
+            .to_owned()
+        )
+        // s15
+        .add(|| parserrs::ParserState::new()
+            .
+        )
+        .to_owned();
 }
