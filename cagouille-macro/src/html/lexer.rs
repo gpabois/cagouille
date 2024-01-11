@@ -1,4 +1,6 @@
-use syn::{parse::ParseStream, Token};
+use proc_macro2::Span;
+use syn::{parse::ParseStream, Token, spanned::Spanned};
+use yalp::{lexer::{LexerError, traits::LexerSymbol}, parser::traits::TerminalSymbol};
 
 pub struct VNodeLexer<'a> {
     input: ParseStream<'a>,
@@ -10,18 +12,17 @@ impl<'a> VNodeLexer<'a> {
         Self{input, exhausted: false}
     }
 
-    fn consume(&mut self) -> syn::Result<VNodeToken> {
+    fn consume(&mut self) -> Result<VNodeToken, LexerError> {
         VNodeToken::next(self.input)
     }
 }
 
 impl<'a> yalp::lexer::traits::Lexer for VNodeLexer<'a> {
     type Symbol = VNodeToken;
-    type Error = syn::Error;
 }
 
 impl<'a> Iterator for VNodeLexer<'a> {
-    type Item = syn::Result<VNodeToken>;
+    type Item = Result<VNodeToken, LexerError>;
 
     fn next(&mut self) -> Option<Self::Item> {
 
@@ -70,6 +71,28 @@ pub enum VNodeToken {
     EOS
 }
 
+impl TerminalSymbol for VNodeToken {
+    type Type = VNodeTokenType;
+}
+
+impl LexerSymbol for VNodeToken {
+    type Type = VNodeTokenType;
+
+    fn span(&self) -> yalp::lexer::TokenSpan {
+        match self {
+            VNodeToken::LeftAngle(tok) => tok.span.into(),
+            VNodeToken::ClosingLeftAngle(tok, _) => tok.span.into(),
+            VNodeToken::SingleRightAngle(tok, _) => tok.span.into(),
+            VNodeToken::RightAngle(tok) => tok.span.into(),
+            VNodeToken::Lit(tok) => tok.span().into(),
+            VNodeToken::Ident(tok) => tok.span().into(),
+            VNodeToken::Equal(tok) => tok.span.into(),
+            VNodeToken::Block(tok) => tok.span().into(),
+            VNodeToken::EOS => Span::call_site().into()
+        }
+    }
+}
+
 impl VNodeToken {
     pub fn expect_ident(self) -> syn::Ident {
         match self {
@@ -93,26 +116,25 @@ impl VNodeToken {
     }
 }
 
-impl yalp::symbol::Symbol for VNodeToken {
-    type Type = VNodeTokenType;
+impl yalp::symbol::Symbol<VNodeTokenType> for VNodeToken {
 
-    fn get_type(&self) -> Self::Type {
+    fn get_type(&self) -> VNodeTokenType {
         match self {
-            VNodeToken::LeftAngle(_) => Self::Type::LeftAngle,
-            VNodeToken::ClosingLeftAngle(_, _) => Self::Type::ClosingLeftAngle,
-            VNodeToken::SingleRightAngle(_, _) => Self::Type::SingleRightAngle,
-            VNodeToken::RightAngle(_) => Self::Type::RightAngle,
-            VNodeToken::Lit(_) => Self::Type::Lit,
-            VNodeToken::Ident(_) => Self::Type::Ident,
-            VNodeToken::Equal(_) => Self::Type::Equal,
-            VNodeToken::Block(_) => Self::Type::Block,
-            VNodeToken::EOS => Self::Type::EOS,
+            VNodeToken::LeftAngle(_) => VNodeTokenType::LeftAngle,
+            VNodeToken::ClosingLeftAngle(_, _) => VNodeTokenType::ClosingLeftAngle,
+            VNodeToken::SingleRightAngle(_, _) => VNodeTokenType::SingleRightAngle,
+            VNodeToken::RightAngle(_) => VNodeTokenType::RightAngle,
+            VNodeToken::Lit(_) => VNodeTokenType::Lit,
+            VNodeToken::Ident(_) => VNodeTokenType::Ident,
+            VNodeToken::Equal(_) => VNodeTokenType::Equal,
+            VNodeToken::Block(_) => VNodeTokenType::Block,
+            VNodeToken::EOS => VNodeTokenType::EOS,
         }
     }
 }
 
 impl VNodeToken {
-    pub fn next(input: ParseStream) -> syn::Result<Self> {
+    pub fn next(input: ParseStream) -> Result<Self, LexerError> {
         if input.is_empty() {
             return Ok(VNodeToken::EOS);
         }

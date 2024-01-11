@@ -1,5 +1,8 @@
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
+use yalp::parser::traits::Parser;
+
+use self::parser::VNODE_PARSER;
 
 mod lexer;
 mod parser;
@@ -106,6 +109,6 @@ impl ToTokens for VNode {
 impl Parse for VNode {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let lexer = lexer::VNodeLexer::new(input);
-        parser::VNodeParser::new(input).parse()
+        VNODE_PARSER.parse(lexer).unwrap();
     }
 }

@@ -1,29 +1,27 @@
-use super::super::{traits::ParserGrammar, stack::ParserStack};
+use crate::parser::traits::ParserSymbol;
 
-pub type RuleRunnerResult<G, E> = Result<<G as ParserGrammar>::Symbol, E>;
-
-type AnyRuleRunnerFunc<'a, G, E> = &'a (dyn Fn(&mut ParserStack<G>) -> RuleRunnerResult<G, E> + Sync + Send);
+type AnyRuleRunnerFunc<'a, G, E> = &'a (dyn Fn(&[G]) -> Result<G, E> + Sync + Send);
 
 #[derive(Clone)]
-pub struct ParserRuleRunner<'a, G, E>(AnyRuleRunnerFunc<'a, G, E>) where G: ParserGrammar;
+pub struct ParserRuleRunner<'a, G, E>(pub AnyRuleRunnerFunc<'a, G, E>) where G: ParserSymbol;
 
-impl<'a, G, E> ParserRuleRunner<'a, G, E> where G: ParserGrammar 
+impl<'a, G, E> ParserRuleRunner<'a, G, E> where G: ParserSymbol 
 {
-    pub fn execute(&self, stack: &mut ParserStack<G>) -> RuleRunnerResult<G, E> {
-        self.0(stack)
+    pub fn execute(&self, symbols: &[G]) -> Result<G, E> {
+        self.0(symbols)
     }
 }
 
 #[derive(Clone)]
-pub struct ParserRulesRunners<'a, G, E>(Vec<ParserRuleRunner<'a, G, E>>) where G: ParserGrammar;  
+pub struct ParserRulesRunners<'a, G, E>(Vec<ParserRuleRunner<'a, G, E>>) where G: ParserSymbol;  
 
-impl<'a, G, E> ParserRulesRunners<'a, G, E> where G: ParserGrammar
+impl<'a, G, E> ParserRulesRunners<'a, G, E> where G: ParserSymbol
 {    
     pub fn new() -> Self {
         Self(vec![])
     }
     
-    pub fn add<F: Fn(&mut ParserStack<G>) -> RuleRunnerResult<G, E> + Sync + Send>(&mut self, f: &'a F) -> &mut Self {
+    pub fn add<F: Fn(&[G]) -> Result<G, E> + Sync + Send>(&mut self, f: &'a F) -> &mut Self {
         self.0.push(ParserRuleRunner(f));
         self
     }

@@ -3,15 +3,15 @@ use std::vec;
 use lazy_static::lazy_static;
 
 use proc_macro2::Span;
-use syn::parse;
-use yalp::{parserrs, symbol::{self, Symbol}};
+use yalp::{symbol::{self, Symbol}, parser::{rule::ParserRuleSet, ParserError, traits::{ParserSymbolType, Parser}}};
 
-use super::{lexer::VNodeToken, VElementAttributes, VNode, VElementNode, VElementAttribute, VChildrenNode};
-use crate::html::lexer::VNodeTokenType;
+use crate::html::VBlockNode;
 
-#[derive(Clone, PartialEq, Debug)]
+use super::{lexer::{VNodeToken, VNodeTokenType}, VElementAttributes, VNode, VElementNode, VElementAttribute, VChildrenNode};
+
+#[derive(Clone, PartialEq)]
 enum VNodeParserSymbolType {
-    Token,
+    Token(VNodeTokenType),
     RootNode,
     Element,
     OpenTag,
@@ -21,6 +21,22 @@ enum VNodeParserSymbolType {
     Node,
     Attributes,
     Attribute
+}
+
+impl ParserSymbolType<VNodeTokenType> for VNodeParserSymbolType {
+    fn is_terminal(&self) -> bool {
+        match self {
+            Self::Token(_) => true,
+            _ => false
+        }
+    }
+
+    fn expect_terminal_type(&self) -> VNodeTokenType {
+        match self {
+            Self::Token(tok) => *tok,
+            _ => unreachable!("not a terminal type")
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -58,50 +74,80 @@ enum VNodeParserSymbol {
     RootNode(VElementNode)
 }
 
+impl From<VNodeTokenType> for VNodeParserSymbolType {
+    fn from(value: VNodeTokenType) -> Self {
+        Self::Token(value)
+    }
+}
+
+impl yalp::parser::traits::ParserSymbol for VNodeParserSymbol {
+    type Terminal = VNodeToken;
+    type Type = VNodeParserSymbolType;
+}
+
 impl From<VNodeToken> for VNodeParserSymbol {
     fn from(value: VNodeToken) -> Self {
         Self::Token(value)
     }
 }
 
-fn wrong_symbol_type(expecting: VNodeParserSymbolType, got: VNodeParserSymbolType) -> String {
-    format!("expexting {:?}, got {:?}", expecting, got)
+impl TryInto<syn::Ident> for VNodeParserSymbol {
+    type Error = ParserError<VNodeParserSymbol>;
+
+    fn try_into(self) -> Result<syn::Ident, Self::Error> {
+        match self {
+            Self::Token(VNodeToken::Ident(ident)) => Ok(ident),
+            _ => unreachable!()
+        }
+    }
+}
+
+impl TryInto<syn::Block> for VNodeParserSymbol {
+    type Error = ParserError<VNodeParserSymbol>;
+
+    fn try_into(self) -> Result<syn::Block, Self::Error> {
+        match self {
+            Self::Token(VNodeToken::Block(block)) => Ok(block),
+            _ => unreachable!()
+        }
+    }
+}
+
+impl TryInto<syn::Lit> for VNodeParserSymbol {
+    type Error = ParserError<VNodeParserSymbol>;
+
+    fn try_into(self) -> Result<syn::Lit, Self::Error> {
+        match self {
+            Self::Token(VNodeToken::Lit(lit)) => Ok(lit),
+            _ => unreachable!()
+        }
+    }
 }
 
 impl TryInto<VNode> for VNodeParserSymbol {
-    type Error = syn::Error;
+    type Error = ParserError<VNodeParserSymbol>;
 
     fn try_into(self) -> Result<VNode, Self::Error> {
         match self {
             Self::Node(node) => Ok(node),
-            sym => Err(syn::Error::new(
-                Span::call_site(),  
-                wrong_symbol_type(
-                VNodeParserSymbolType::Node, 
-                sym.get_type()
-            )))
+            _ => unreachable!()
         }
     }
 }
 
 impl TryInto<VChildrenNode> for VNodeParserSymbol {
-    type Error = syn::Error;
+    type Error = ParserError<VNodeParserSymbol>;
 
     fn try_into(self) -> Result<VChildrenNode, Self::Error> {
         match self {
             Self::Children(children) => Ok(children),
-            sym => Err(syn::Error::new(
-                Span::call_site(),  
-                wrong_symbol_type(
-                VNodeParserSymbolType::Children, 
-                sym.get_type()
-            )))
+            _ => unreachable!()
         }
     }
 }
 
 impl TryInto<VElementNode> for VNodeParserSymbol {
-    type Error = syn::Error;
+    type Error = ParserError<VNodeParserSymbol>;
 
     fn try_into(self) -> Result<VElementNode, Self::Error> {
         match self {
@@ -112,44 +158,29 @@ impl TryInto<VElementNode> for VNodeParserSymbol {
             Self::SingleTag(SingleTag{tag, attrs}) => Ok(VElementNode {
                 tag, attrs, children: Default::default()
             }),
-            sym => Err(syn::Error::new(
-                Span::call_site(),  
-                wrong_symbol_type(
-                VNodeParserSymbolType::OpenTag, 
-                sym.get_type()
-            )))
+            _ => unreachable!()
         }
     }
 }
 
 impl TryInto<VElementAttribute> for VNodeParserSymbol {
-    type Error = syn::Error;
+    type Error = ParserError<VNodeParserSymbol>;
 
     fn try_into(self) -> Result<VElementAttribute, Self::Error> {
         match self {
             Self::Attribute(attr) => Ok(attr),
-            sym => Err(syn::Error::new(
-                Span::call_site(),  
-                wrong_symbol_type(
-                VNodeParserSymbolType::Attribute, 
-                sym.get_type()
-            )))
+            _ => unreachable!()
         }
     }
 }
 
 impl TryInto<VElementAttributes> for VNodeParserSymbol {
-    type Error = syn::Error;
+    type Error = ParserError<VNodeParserSymbol>;
 
     fn try_into(self) -> Result<VElementAttributes, Self::Error> {
         match self {
             Self::Attributes(attrs) => Ok(attrs),
-            sym => Err(syn::Error::new(
-                Span::call_site(),  
-                wrong_symbol_type(
-                VNodeParserSymbolType::Attributes, 
-                sym.get_type()
-            )))
+            _ => unreachable!()
         }
     }
 }
@@ -160,31 +191,25 @@ impl TryInto<VNodeToken> for VNodeParserSymbol {
     fn try_into(self) -> Result<VNodeToken, Self::Error> {
         match self {
             Self::Token(token) => Ok(token),
-            sym => Err(syn::Error::new(
-                Span::call_site(),  
-                wrong_symbol_type(
-                VNodeParserSymbolType::Token, 
-                sym.get_type()
-            )))
+            _ => unreachable!()
         }
     }
 }
 
-impl yalp::symbol::Symbol for VNodeParserSymbol {
-    type Type = VNodeParserSymbolType;
-
-    fn get_type(&self) -> Self::Type {
+impl yalp::symbol::Symbol<VNodeParserSymbolType> for VNodeParserSymbol {
+    
+    fn get_type(&self) -> VNodeParserSymbolType {
         match self {
-            VNodeParserSymbol::Token(_) => Self::Type::Token,
-            VNodeParserSymbol::Attribute(_) => Self::Type::Attribute,
-            VNodeParserSymbol::Attributes(_) => Self::Type::Attributes,
-            VNodeParserSymbol::OpenTag (_) => Self::Type::OpenTag,
-            VNodeParserSymbol::SingleTag (_) => Self::Type::SingleTag,
-            VNodeParserSymbol::CloseTag (_) => Self::Type::CloseTag,
-            VNodeParserSymbol::Children(_) => Self::Type::Children,
-            VNodeParserSymbol::Node(_) => Self::Type::Node,
-            VNodeParserSymbol::RootNode(_) => Self::Type::RootNode,
-            VNodeParserSymbol::Element(_) => Self::Type::Element,
+            VNodeParserSymbol::Token(tok) => VNodeParserSymbolType::Token(tok.get_type()),
+            VNodeParserSymbol::Attribute(_) => VNodeParserSymbolType::Attribute,
+            VNodeParserSymbol::Attributes(_) => VNodeParserSymbolType::Attributes,
+            VNodeParserSymbol::OpenTag (_) => VNodeParserSymbolType::OpenTag,
+            VNodeParserSymbol::SingleTag (_) => VNodeParserSymbolType::SingleTag,
+            VNodeParserSymbol::CloseTag (_) => VNodeParserSymbolType::CloseTag,
+            VNodeParserSymbol::Children(_) => VNodeParserSymbolType::Children,
+            VNodeParserSymbol::Node(_) => VNodeParserSymbolType::Node,
+            VNodeParserSymbol::RootNode(_) => VNodeParserSymbolType::RootNode,
+            VNodeParserSymbol::Element(_) => VNodeParserSymbolType::Element,
         }
     }
 }
@@ -193,16 +218,8 @@ impl yalp::symbol::Symbol for VNodeParserSymbol {
 #[derive(Clone)]
 pub struct VNodeParser;
 
-impl yalp::parserrs::traits::Parser for VNodeParser {
-    type Error = syn::Error;
-    type Symbol = VNodeParserSymbol;
-    type Terminal = VNodeToken;
-}
-
-
 lazy_static!{
     /*
-        S' -> RootNode
         RootNode -> Element
         Element -> SingleTag
         Element -> OpenTag Children CloseTag
@@ -223,257 +240,143 @@ lazy_static!{
         Attr -> ident = lit
     */
 
-    static ref RULE_RUNNERS: parserrs::ParserRulesRunners<'static, VNodeParser> = parserrs::ParserRulesRunners::new()
-    // 0: S' -> RootNode
-    .add(&|stack| {
-        let element: VElementNode = stack.try_pop_into::<VElementNode>().unwrap()?;
-        Ok(VNodeParserSymbol::RootNode(element))
-    })
-    // 1: RootNode -> Element
-    .add(&|stack| {
-        let element: VElementNode = stack.try_pop_into::<VElementNode>().unwrap()?;
-        Ok(VNodeParserSymbol::RootNode(element))
-    })
-    // 2: OpenTag -> < ident >
-    .add(&|stack| {
-        stack.pop();
-        let ident = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_ident();
-        stack.pop();
-
-        Ok(VNodeParserSymbol::OpenTag(OpenTag{ tag: Some(ident), attrs: Default::default() }))
-    })
-    // 3: OpenTag -> < ident Attrs >
-    .add(&|stack| {
-        stack.pop();
-        let ident = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_ident();
-        let attrs = stack.try_pop_into::<VElementAttributes>().unwrap()?;
-        stack.pop();
-        Ok(VNodeParserSymbol::OpenTag(OpenTag{ tag: Some(ident), attrs }))
-    })
-    // 4: CloseTag -> </ ident >
-    .add(&|stack| {
-        stack.pop();
-        let ident = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_ident();
-        stack.pop();
-        Ok(VNodeParserSymbol::CloseTag(CloseTag{ tag: Some(ident) }))
-    })
-    // 5: SingleElement -> < ident Attrs />
-    .add(&|stack| {
-        stack.pop();
-        let ident = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_ident();
-        let attrs = stack.try_pop_into::<VElementAttributes>().unwrap()?;
-        stack.pop();
-        Ok(VNodeParserSymbol::SingleTag(SingleTag{ tag: Some(ident), attrs }))
-    })
-    // 6: SingleElement -> < ident />
-    .add(&|stack| {
-        stack.pop();
-        let ident = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_ident();
-        stack.pop();
-        Ok(VNodeParserSymbol::SingleTag (SingleTag{ tag: Some(ident), attrs: Default::default() }))
-    })   
-    // 7: Children -> Children Node
-    .add(&|stack| {
-        let mut children = stack.try_pop_into::<VChildrenNode>().unwrap()?;
-        children.push(stack.try_pop_into::<VNode>().unwrap()?);
-        Ok(VNodeParserSymbol::Children(children))
-    })
-    // 8: Children -> Node 
-    .add(&|stack| {
-        let mut children = VChildrenNode::default();
-        children.push(stack.try_pop_into::<VNode>().unwrap()?);
-        Ok(VNodeParserSymbol::Children(children))
-    })
-    // 9: Node -> Element 
-    .add(&|stack| {
-        let element = stack.try_pop_into::<VElementNode>().unwrap()?;
-        Ok(VNodeParserSymbol::Node(element.into()))
-    })
-    // 10: Node -> block
-    .add(&|stack| {
-        let block = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_block();
-        Ok(VNodeParserSymbol::Node(block.into()))
-    })
-    // 11: Node -> lit
-    .add(&|stack| {
-        let lit = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_lit();
-        Ok(VNodeParserSymbol::Node(lit.into()))
-    })
-    // 12: Element -> SingleTag
-    .add(&|stack| {
-        Ok(VNodeParserSymbol::Element(
-            stack.try_pop_into::<VElementNode>().unwrap()?
-        ))
-    })   
-    // 13: Element -> OpenTag Children CloseTag
-    .add(&|stack| {
-        let mut el = stack.try_pop_into::<VElementNode>().unwrap()?;
-        let children = stack.try_pop_into::<VChildrenNode>().unwrap()?;
-        stack.pop();
-        
-        el.children = children;
-
-        Ok(VNodeParserSymbol::Element(el))
-    }) 
-    // 14: Element -> OpenTag CloseTag
-    .add(&|stack| {
-        let mut el = stack.try_pop_into::<VElementNode>().unwrap()?;
-        stack.pop();
-        
-        Ok(VNodeParserSymbol::Element(el))
-    }) 
-    // 15: Attrs -> Attrs Attr
-    .add(&|stack| {
-        let mut attrs = stack.try_pop_into::<VElementAttributes>().unwrap()?;
-        let attr = stack.try_pop_into::<VElementAttribute>().unwrap()?;
-        attrs.push(attr);
-
-        Ok(VNodeParserSymbol::Attributes(attrs))
-    }) 
-    // 16: Attrs -> Attr
-    .add(&|stack| {
-        let attr = stack.try_pop_into::<VElementAttribute>().unwrap()?;
-        let mut attrs = VElementAttributes::default();
-        attrs.push(attr);
-
-        Ok(VNodeParserSymbol::Attributes(attrs))
-    }) 
-    // 17: Attr -> ident = block
-    .add(&|stack| {
-        let ident = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_ident();
-        stack.pop();
-        let block = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_block();
-
-        Ok(VNodeParserSymbol::Attribute(VElementAttribute::new(ident, block)))
-    }) 
-    // 18: Attr -> ident = lit
-    .add(&|stack| {
-        let ident = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_ident();
-        stack.pop();
-        let lit = stack.try_pop_into::<VNodeToken>().unwrap()?.expect_lit();
-
-        Ok(VNodeParserSymbol::Attribute(VElementAttribute::new(ident, lit)))
-    }) 
-    .to_owned();
-    
-    static ref PARSER_TABLE: parserrs::ParserTable<VNodeParser> = parserrs::ParserTable::new()
-        // s0 
-        .add(|| parserrs::ParserState::new()
-            .shift(VNodeTokenType::LeftAngle, 5)
-            .goto(VNodeParserSymbolType::RootNode, 1)
-            .goto(VNodeParserSymbolType::Element, 2)
-            .goto(VNodeParserSymbolType::OpenTag, 4)
-            .goto(VNodeParserSymbolType::SingleTag, 3)
-            .to_owned()
+    static ref VNODE_RULES: ParserRuleSet<VNodeParserSymbol> = yalp::parser::rule::ParserRuleSet::<VNodeParserSymbol>::new()
+        .add( // RootNode -> Element
+            VNodeParserSymbolType::RootNode, [VNodeParserSymbolType::Element],
+            &|syms| {
+                let el: VElementNode = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::RootNode(el))
+            }
         )
-        // s1
-        .add(|| parserrs::ParserState::new()
-            .accept(VNodeTokenType::EOS)
-            .to_owned()
+        .add( // Element -> SingleTag
+            VNodeParserSymbolType::Element, [VNodeParserSymbolType::SingleTag],
+            &|syms| {
+                let el: VElementNode = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::Element(el))
+            }
         )
-        // s2
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::EOS, 1)
-            .to_owned()
+        .add( // Element -> OpenTag Children CloseTag
+            VNodeParserSymbolType::Element, [VNodeParserSymbolType::OpenTag, VNodeParserSymbolType::Children, VNodeParserSymbolType::CloseTag],
+            &|syms| {
+                let mut el: VElementNode = syms[0].try_into()?;
+                el.children = syms[1].try_into()?;
+                Ok(VNodeParserSymbol::Element(el))
+            }
         )
-        // s3
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::EOS, 2)
-            .to_owned()
+        .add( // Element -> OpenTag CloseTag
+            VNodeParserSymbolType::Element, [VNodeParserSymbolType::OpenTag, VNodeParserSymbolType::CloseTag],  
+            &|syms| {
+                let el: VElementNode = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::Element(el))
+            }
         )
-        // s4
-        .add(|| parserrs::ParserState::new()
-            .shift(VNodeTokenType::LeftAngle, 15)
-            .shift(VNodeTokenType::ClosingLeftAngle, 9)
-            .shift(VNodeTokenType::Block, 11)
-            .shift(VNodeTokenType::Lit, 12)
-            .goto(VNodeParserSymbolType::Element, 10)
-            .goto(VNodeParserSymbolType::OpenTag, 14)
-            .goto(VNodeParserSymbolType::CloseTag, 7)
-            .goto(VNodeParserSymbolType::SingleTag, 13)
-            .goto(VNodeParserSymbolType::Children, 6)
-            .goto(VNodeParserSymbolType::Node, 8)
-            .to_owned()
+        .add( // OpenTag -> < ident >
+            VNodeParserSymbolType::OpenTag, [VNodeTokenType::LeftAngle, VNodeTokenType::Ident, VNodeTokenType::RightAngle],
+            &|syms| {
+                let tag: syn::Ident = syms[1].try_into()?;
+                Ok(VNodeParserSymbol::OpenTag(OpenTag { tag: Some(tag), attrs: Default::default() }))
+            }
         )
-        // s5
-        .add(|| parserrs::ParserState::new()
-            .shift(VNodeTokenType::Ident, 16)
-            .to_owned()
+        .add( // OpenTag -> < ident Attrs >
+            VNodeParserSymbolType::OpenTag, [VNodeTokenType::LeftAngle.into(), VNodeTokenType::Ident.into(), VNodeParserSymbolType::Attributes, VNodeTokenType::RightAngle.into()],
+            &|syms| {
+                let tag: syn::Ident = syms[1].try_into()?;
+                let attrs: VElementAttributes = syms[2].try_into()?;
+                Ok(VNodeParserSymbol::OpenTag(OpenTag { tag: Some(tag), attrs }))
+            }
         )
-        // s6
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::LeftAngle, 15)
-            .reduce(VNodeTokenType::ClosingLeftAngle, 9)
-            .shift(VNodeTokenType::Block, 11)
-            .shift(VNodeTokenType::Lit, 12)
-            .goto(VNodeParserSymbolType::Element, 10)
-            .goto(VNodeParserSymbolType::OpenTag, 14)
-            .goto(VNodeParserSymbolType::CloseTag, 7)
-            .goto(VNodeParserSymbolType::SingleTag, 13)
-            .goto(VNodeParserSymbolType::Node, 18)
-            .to_owned()
+        .add( // CloseTag -> closing_angle ident >
+            VNodeParserSymbolType::CloseTag, [VNodeTokenType::ClosingLeftAngle, VNodeTokenType::Ident, VNodeTokenType::RightAngle],
+            &|syms| {
+                let tag: syn::Ident = syms[1].try_into()?;
+                Ok(VNodeParserSymbol::CloseTag(CloseTag { tag: Some(tag) }))
+            }
         )
-        // s7
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::EOS, 4)
-            .to_owned()
-        ) 
-        // s8
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::LeftAngle, 11)
-            .reduce(VNodeTokenType::ClosingLeftAngle, 11)
-            .reduce(VNodeTokenType::Block, 11)
-            .reduce(VNodeTokenType::Lit, 11)
-            .to_owned()
+        .add( // SingleTag -> < ident Attrs />
+            VNodeParserSymbolType::SingleTag, [VNodeTokenType::LeftAngle.into(), VNodeTokenType::Ident.into(), VNodeParserSymbolType::Attributes, VNodeTokenType::SingleRightAngle.into()],
+            &|syms| {
+                let tag: syn::Ident = syms[1].try_into()?;
+                let attrs: VElementAttributes = syms[2].try_into()?;
+                Ok(VNodeParserSymbol::SingleTag(SingleTag { tag: Some(tag), attrs }))
+            }
         )
-        // s9
-        .add(|| parserrs::ParserState::new()
-            .shift(VNodeTokenType::Ident, 19)
-            .to_owned()
+        .add( // SingleTag -> < ident />
+            VNodeParserSymbolType::SingleTag, [VNodeTokenType::LeftAngle.into(), VNodeTokenType::Ident.into(), VNodeParserSymbolType::Attributes, VNodeTokenType::SingleRightAngle.into()],
+            &|syms| {
+                let tag: syn::Ident = syms[1].try_into()?;
+                Ok(VNodeParserSymbol::SingleTag(SingleTag { tag: Some(tag), attrs: Default::default() }))
+            }
         )
-        // s10
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::LeftAngle, 12)
-            .reduce(VNodeTokenType::ClosingLeftAngle, 12)
-            .reduce(VNodeTokenType::Block, 12)
-            .reduce(VNodeTokenType::Lit, 12)
-            .to_owned()
+        .add( // Children -> Children Node
+            VNodeParserSymbolType::Children, [VNodeParserSymbolType::Children, VNodeParserSymbolType::Node],
+            &|syms| {
+                let mut children: VChildrenNode = syms[0].try_into()?;
+                let node: VNode = syms[1].try_into()?;
+                children.0.push(node);
+                Ok(VNodeParserSymbol::Children(children))
+            } 
         )
-        // s11
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::LeftAngle, 13)
-            .reduce(VNodeTokenType::ClosingLeftAngle, 13)
-            .reduce(VNodeTokenType::Block, 13)
-            .reduce(VNodeTokenType::Lit, 13)
-            .to_owned()
-        )      
-        // s12
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::LeftAngle, 14)
-            .reduce(VNodeTokenType::ClosingLeftAngle, 14)
-            .reduce(VNodeTokenType::Block, 14)
-            .reduce(VNodeTokenType::Lit, 14)
-            .to_owned()
+        .add( // Children -> Node
+            VNodeParserSymbolType::Children, [VNodeParserSymbolType::Node],
+            &|syms| {
+                let node: VNode = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::Children(VChildrenNode(vec![node])))
+            } 
         )
-        // s13
-        .add(|| parserrs::ParserState::new()
-            .reduce(VNodeTokenType::LeftAngle, 2)
-            .reduce(VNodeTokenType::ClosingLeftAngle, 2)
-            .reduce(VNodeTokenType::Block, 2)
-            .reduce(VNodeTokenType::Lit, 2)
-            .to_owned()
+        .add( // Node -> Element
+            VNodeParserSymbolType::Node, [VNodeParserSymbolType::Element],
+            &|syms| {
+                let el: VElementNode = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::Node(VNode::Element(el)))
+            } 
         )
-        // s14
-        .add(|| parserrs::ParserState::new()
-            .shift(VNodeTokenType::LeftAngle, 15)
-            .shift(VNodeTokenType::ClosingLeftAngle, 22)
-            .shift(VNodeTokenType::Block, 11)
-            .shift(VNodeTokenType::Lit, 12)
-            .to_owned()
+        .add( // Node -> block
+            VNodeParserSymbolType::Node, [VNodeTokenType::Block],
+            &|syms| {
+                let block: syn::Block = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::Node(VNode::Block(block)))
+            } 
         )
-        // s15
-        .add(|| parserrs::ParserState::new()
-            .
+        .add( // Node -> lit
+            VNodeParserSymbolType::Node, [VNodeTokenType::Lit],
+            &|syms| {
+                let lit: syn::Lit = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::Node(VNode::Lit(lit)))
+            } 
+        )
+        .add( //  Attrs -> Attrs Attr
+            VNodeParserSymbolType::Attributes, [VNodeParserSymbolType::Attributes, VNodeParserSymbolType::Attribute],
+            &|syms| {
+                let mut attrs: VElementAttributes = syms[0].try_into()?;
+                let attr: VElementAttribute = syms[1].try_into()?;
+                attrs.0.push(attr);
+                Ok(VNodeParserSymbol::Attributes(attrs))
+            } 
+        )
+        .add( // Attrs -> Attr
+            VNodeParserSymbolType::Attributes, [VNodeParserSymbolType::Attribute],
+            &|syms| {
+                let attr: VElementAttribute = syms[0].try_into()?;
+                Ok(VNodeParserSymbol::Attributes(VElementAttributes(vec![attr])))
+            } 
+        )
+        .add( // Attr -> ident = block
+            VNodeParserSymbolType::Attribute, [VNodeTokenType::Ident, VNodeTokenType::Equal, VNodeTokenType::Block],
+            &|syms| {
+                let name: syn::Ident = syms[0].try_into()?;
+                let block: syn::Block = syms[1].try_into()?;
+                Ok(VNodeParserSymbol::Attribute(VElementAttribute::new(name, block)))
+            }
+        )
+        .add( // Attr -> ident = lit
+            VNodeParserSymbolType::Attribute, [VNodeTokenType::Ident, VNodeTokenType::Equal, VNodeTokenType::Lit],
+            &|syms| {
+                let name: syn::Ident = syms[0].try_into()?;
+                let lit: syn::Lit = syms[1].try_into()?;
+                Ok(VNodeParserSymbol::Attribute(VElementAttribute::new(name, lit)))
+            }
         )
         .to_owned();
+
+    pub static ref VNODE_PARSER: yalp::parser::lr::LrParser<'static, VNodeParserSymbol> = yalp::parser::lr::LrParser::generate(&VNODE_RULES);
 }
