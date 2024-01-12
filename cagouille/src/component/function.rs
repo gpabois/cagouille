@@ -59,8 +59,7 @@ impl<Component> FunctionComponent<Component>
         match event {
             ComponentEvent::PropertiesChanged { previous } => todo!(),
             ComponentEvent::Rendered => todo!(),
-            ComponentEvent::Destroyed => todo!(),
-            ComponentEvent::MessageReceived(_) => todo!()
+            ComponentEvent::Destroyed => todo!()
         }
 
         Ok(())

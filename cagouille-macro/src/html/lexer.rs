@@ -1,6 +1,8 @@
+use std::fmt::Debug;
+
 use proc_macro2::Span;
 use syn::{parse::ParseStream, Token, spanned::Spanned};
-use yalp::{lexer::{LexerError, traits::LexerSymbol}, parser::traits::TerminalSymbol};
+use yalp::{lexer::{LexerError, traits::LexerSymbol}, parser::traits::TerminalSymbol, symbol::Symbol};
 
 pub struct VNodeLexer<'a> {
     input: ParseStream<'a>,
@@ -8,7 +10,7 @@ pub struct VNodeLexer<'a> {
 }
 
 impl<'a> VNodeLexer<'a> {
-    pub fn new(input: ParseStream) -> Self {
+    pub fn new(input: ParseStream<'a>) -> Self {
         Self{input, exhausted: false}
     }
 
@@ -45,13 +47,14 @@ impl<'a> Iterator for VNodeLexer<'a> {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VNodeTokenType {
     LeftAngle,
     ClosingLeftAngle,
     SingleRightAngle,
     RightAngle,
     Lit,
+    Path,
     Ident,
     Equal,
     Block,
@@ -64,6 +67,7 @@ pub enum VNodeToken {
     ClosingLeftAngle(syn::Token![<], syn::Token![/]),
     SingleRightAngle(syn::Token![/], syn::Token![>]),
     RightAngle(syn::Token![>]),
+    Path(syn::Path),
     Lit(syn::Lit),
     Ident(syn::Ident),
     Equal(syn::Token![=]),
@@ -71,9 +75,13 @@ pub enum VNodeToken {
     EOS
 }
 
-impl TerminalSymbol for VNodeToken {
-    type Type = VNodeTokenType;
+impl Debug for VNodeToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.get_type().fmt(f)
+    }
 }
+
+impl TerminalSymbol for VNodeToken {}
 
 impl LexerSymbol for VNodeToken {
     type Type = VNodeTokenType;
@@ -85,33 +93,11 @@ impl LexerSymbol for VNodeToken {
             VNodeToken::SingleRightAngle(tok, _) => tok.span.into(),
             VNodeToken::RightAngle(tok) => tok.span.into(),
             VNodeToken::Lit(tok) => tok.span().into(),
+            VNodeToken::Path(tok) => tok.span().into(),
             VNodeToken::Ident(tok) => tok.span().into(),
             VNodeToken::Equal(tok) => tok.span.into(),
             VNodeToken::Block(tok) => tok.span().into(),
             VNodeToken::EOS => Span::call_site().into()
-        }
-    }
-}
-
-impl VNodeToken {
-    pub fn expect_ident(self) -> syn::Ident {
-        match self {
-            Self::Ident(ident) => ident,
-            _ => unreachable!("expecting ident")
-        }
-    }
-
-    pub fn expect_lit(self) -> syn::Lit {
-        match self {
-            Self::Lit(lit) => lit,
-            _ => unreachable!("expecting block")
-        }
-    }
-
-    pub fn expect_block(self) -> syn::Block {
-        match self {
-            Self::Block(block) => block,
-            _ => unreachable!("expecting block")
         }
     }
 }
@@ -126,6 +112,7 @@ impl yalp::symbol::Symbol<VNodeTokenType> for VNodeToken {
             VNodeToken::RightAngle(_) => VNodeTokenType::RightAngle,
             VNodeToken::Lit(_) => VNodeTokenType::Lit,
             VNodeToken::Ident(_) => VNodeTokenType::Ident,
+            VNodeToken::Path(_) => VNodeTokenType::Path,
             VNodeToken::Equal(_) => VNodeTokenType::Equal,
             VNodeToken::Block(_) => VNodeTokenType::Block,
             VNodeToken::EOS => VNodeTokenType::EOS,
@@ -154,9 +141,13 @@ impl VNodeToken {
         if input.peek(Token![>]) {
             return Ok(Self::RightAngle(input.parse()?));
         }
+        
+        if let Ok(path) = input.fork().parse::<syn::Path>() {
+            if let Some(ident) = path.get_ident().cloned() {
+                return Ok(Self::Ident(ident));
+            }
 
-        if input.peek(syn::Ident) {
-            return Ok(Self::Ident(input.parse()?));
+            return Ok(Self::Path(path));
         }
         
         if input.peek(Token![=]) {

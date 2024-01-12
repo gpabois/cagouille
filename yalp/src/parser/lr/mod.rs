@@ -1,8 +1,8 @@
+use std::fmt::format;
+
 use crate::{symbol::Symbol, lexer::traits::Lexer};
-
 use self::{table::LrParserTable, stack::LrParserStack, action::LrParserOp};
-
-use super::{rule::ParserRuleSet, traits::{Parser, ParserSymbol}, ParserResult};
+use super::{rule::ParserRuleSet, traits::{Parser, ParserSymbol}, ParserResult, ParserError};
 
 mod goto;
 mod action;
@@ -25,8 +25,9 @@ impl<'a, G> Parser<'a> for LrParser<'a, G> where G: ParserSymbol + 'static {
         }
     }
 
-    fn parse<L>(&self, stream: L) -> ParserResult<G> 
-    where L: Lexer<Symbol = G::Terminal>
+    fn parse<S, L>(&self, stream: L) -> Result<S, ParserError<G>> 
+    where L: Lexer<Symbol = G::Terminal>, 
+            G: TryInto<S, Error=ParserError<G>>
     {
         let mut exec = LrParserExecution{
             table: &self.table,
@@ -35,7 +36,9 @@ impl<'a, G> Parser<'a> for LrParser<'a, G> where G: ParserSymbol + 'static {
             stream
         };
 
-        exec.parse()
+        let sym = exec.parse()?;
+
+        G::try_into(sym)
     }
 }
 
@@ -55,24 +58,35 @@ where G: ParserSymbol, L: Lexer<Symbol = G::Terminal>
         for tok in &mut self.stream {
             let tok: G::Terminal = tok?;
             self.stack.syms.push(tok.clone().into());
-            let state = self.table.get(*self.stack.states.last().unwrap()).unwrap();
-            let action = state.get_action(&tok.get_type()).unwrap();
+            
+            let state_id = *self.stack.states.last().expect("parser stack is empty");
+            let state = self.table.get(state_id).unwrap();
+            let action = state.get_action(&tok.get_type()).ok_or_else(||
+                ParserError::unexpected_token(
+                    tok, 
+                    state.iter_terminals().cloned().collect(), 
+                    state_id
+                )
+            )?;
 
             match action.op {
                 LrParserOp::Shift(next_state) => {
                     // Shift to the next state
                     self.stack.states.push(next_state);
                 },
-                LrParserOp::Reduce(rule_id) => {
+                LrParserOp::Reduce(mut rule_id) => {
                     // Reduce the stack by the given rule
-                    let nb_syms = self.rules.get(rule_id).unwrap().rhs.len();
+                    let rule = self.rules.get(rule_id).expect(&format!("missing rule {rule_id}"));
+                    let nb_syms = rule.rhs.len();
                     let syms = self.stack.pop(nb_syms).collect::<Vec<_>>();
-                    let sym = self.rules.get(rule_id).unwrap().execute( &syms)?;
+                    let sym = rule.execute( &syms)?;
                     self.stack.syms.push(sym.clone());
 
-                    // fetch the next state to go to.
-                    let state = self.table.get(*self.stack.states.last().unwrap()).unwrap();
-                    let next_state = state.get_goto(&sym.get_type()).unwrap().next_state;
+                    // Fetch the next state to go to.
+                    let state = self.table.get(*self.stack.states.last().expect("expecting state to retrieve goto")).unwrap();
+                    let next_state = state.get_goto(&sym.get_type())
+                        .expect(&format!("unexpected symbol {:?}", sym.get_type()))
+                        .next_state;
                     self.stack.states.push(next_state);
                 },
                 LrParserOp::Accept => break,

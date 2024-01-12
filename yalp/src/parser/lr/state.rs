@@ -1,4 +1,4 @@
-use crate::parser::traits::{ParserSymbol, TerminalSymbol};
+use crate::{parser::traits::{ParserSymbol, TerminalSymbol}, lexer::traits::LexerSymbol};
 
 use super::{action::LrParserAction, goto::LrParserGoto};
 
@@ -17,11 +17,15 @@ impl<G: ParserSymbol> LrParserState<G> {
         }
     } 
 
+    pub(super) fn iter_terminals<'a>(&'a self) -> impl Iterator<Item=&'a <G::Terminal as LexerSymbol>::Type> + 'a {
+        self.actions.iter().map(|a| &a.r#type)
+    }
+
     pub(super) fn get_goto(&self, symbol: &G::Type) -> Option<&LrParserGoto<G>> {
         self.goto.iter().find(|a: &&LrParserGoto<G>| a.r#type == *symbol)  
     }
 
-    pub(super) fn get_action(&self, terminal: &<G::Terminal as TerminalSymbol>::Type) -> Option<&LrParserAction<G>> {
+    pub(super) fn get_action(&self, terminal: &<G::Terminal as LexerSymbol>::Type) -> Option<&LrParserAction<G>> {
         self.actions.iter().find(|a| a.r#type == *terminal)
     }
 }

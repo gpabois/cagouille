@@ -1,6 +1,3 @@
-use syn::token::Token;
-
-
 #[derive(Clone, Debug)]
 pub enum TokenSpan {
     ProcMacroSpan(proc_macro2::Span)
@@ -44,12 +41,14 @@ impl Into<syn::Error> for LexerError {
 }
 
 pub mod traits {
+    use std::fmt::Debug;
+
     use crate::symbol::Symbol;
 
     use super::{TokenSpan, LexerError};
 
     pub trait LexerSymbol: Symbol<Self::Type> {
-        type Type: Clone + PartialEq;
+        type Type: Clone + PartialEq + Debug;
 
         fn span(&self) -> TokenSpan;
     }

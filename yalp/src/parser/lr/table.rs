@@ -1,8 +1,8 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fmt::format};
 
 use itertools::Itertools;
 
-use crate::parser::{rule::{ParserRuleSet, ParserRule}, traits::{ParserSymbol, ParserSymbolType, TerminalSymbol}};
+use crate::{parser::{rule::{ParserRuleSet, ParserRule}, traits::{ParserSymbol, ParserSymbolType, TerminalSymbol}}, lexer::traits::LexerSymbol};
 use super::{state::LrParserState, action::{LrParserAction, LrParserOp}, goto::LrParserGoto};
 
 #[derive(Clone)]
@@ -80,7 +80,7 @@ impl<'a, G> Item<'a, G> where G: ParserSymbol + 'static {
                 continue;
             }
 
-            let sym = item.next_symbol().unwrap();
+            let sym = item.next_symbol().expect("item should have a symbol");
 
             // We found our terminal
             if sym.is_terminal() {
@@ -175,7 +175,7 @@ impl<'a, G> ItemSet<'a, G> where G: ParserSymbol + 'static {
         .clone()
         .into_iter()
         .filter(|i| i.next_symbol().is_some())
-        .group_by(|i| i.next_symbol().unwrap())
+        .group_by(|i| i.next_symbol().expect("item should have a symbol"))
         .into_iter()
         .map(|(sym, group)| {
             (sym, ItemSet(group.collect()))
@@ -201,7 +201,7 @@ struct ItemSetState<'a, G> where G: ParserSymbol + 'static {
 
 impl<'a, G> ItemSetState<'a, G> where G: ParserSymbol + 'static {
 
-    fn iter_terminal_symbols<'b>(&'b self) -> impl Iterator<Item=<G::Terminal as TerminalSymbol>::Type> + 'b {
+    fn iter_terminal_symbols<'b>(&'b self) -> impl Iterator<Item=<G::Terminal as LexerSymbol>::Type> + 'b {
         self.next_states
         .iter()
         .map(|(sym_type, _)| sym_type)
@@ -210,7 +210,7 @@ impl<'a, G> ItemSetState<'a, G> where G: ParserSymbol + 'static {
         .map(|sym_type| sym_type.expect_terminal_type())
     }
 
-    fn iter_terminal_transitions<'b>(&'b self) -> impl Iterator<Item=(<G::Terminal as TerminalSymbol>::Type, usize)> + 'b {
+    fn iter_terminal_transitions<'b>(&'b self) -> impl Iterator<Item=(<G::Terminal as LexerSymbol>::Type, usize)> + 'b {
         self.next_states
         .iter()
         .cloned()
@@ -272,14 +272,14 @@ impl<'a, G> ItemSetTable<'a, G> where G: ParserSymbol + 'static {
     pub fn build(rules: &'a ParserRuleSet<G>) -> Self {
         let mut table = Self::default();
         let mut stack: VecDeque<usize> = vec![
-            table.new_state(ItemSet::new_with_items([rules.root().unwrap()]))
+            table.new_state(ItemSet::new_with_items([rules.root().expect("missing root rule")]))
         ].into();
         
         while let Some(state_id) = stack.pop_back() {
             // Get the next states
             let next_states = table
             .get(state_id)
-            .unwrap()
+            .expect(&format!("missing state {state_id}"))
             .set
             .to_owned()
             .next_reachable_sets(rules)
@@ -295,7 +295,7 @@ impl<'a, G> ItemSetTable<'a, G> where G: ParserSymbol + 'static {
             })
             .collect::<Vec<_>>();
             
-            table.get_mut(state_id).unwrap().next_states = next_states;
+            table.get_mut(state_id).expect(&format!("missing state {state_id}")).next_states = next_states;
         }
 
         table
