@@ -2,11 +2,17 @@ use std::{collections::VecDeque, fmt::Debug};
 
 use itertools::Itertools;
 
-use crate::{parser::{rule::{ParserRuleSet, ParserRule}, traits::ParserSymbolClass}, symbol::traits::SymbolDefinition};
+use crate::{parser::{rule::{ParserRuleSet, ParserRule}, traits::ParserSymbolClass}, symbol::{traits::SymbolDefinition, Sym}};
 use super::{state::LrParserState, action::{LrParserAction, LrParserOp}, goto::LrParserGoto};
 
 #[derive(Clone)]
 pub(super) struct LrParserTable<SymDef: SymbolDefinition>(Vec<LrParserState<SymDef>>);
+
+impl<SymDef> Debug for LrParserTable<SymDef> where SymDef: SymbolDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("LrParserTable").field(&self.0).finish()
+    }
+}
 
 impl<SymDef: SymbolDefinition> FromIterator<LrParserState<SymDef>> for LrParserTable<SymDef> 
 {
@@ -370,7 +376,7 @@ mod test {
 
     use crate::{parser::{traits::ParserSymbolClass, rule::ParserRuleSet, ParserError}, symbol::{traits::SymbolDefinition, Sym}};
 
-    use super::{Item, ItemSet};
+    use super::{Item, ItemSet, LrParserTable};
 
 
     #[derive(Clone, Debug, PartialEq)]
@@ -558,5 +564,11 @@ mod test {
         ]);
 
         assert_eq!(closed_set, expected_set);
+    }
+
+    #[test]
+    fn table_generation() {
+        let table = LrParserTable::generate(&RULES);
+        println!("{:?}", table)
     }
 }

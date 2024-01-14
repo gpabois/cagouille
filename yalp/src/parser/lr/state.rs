@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::symbol::traits::SymbolDefinition;
 
 use super::{action::LrParserAction, goto::LrParserGoto};
@@ -6,6 +8,12 @@ use super::{action::LrParserAction, goto::LrParserGoto};
 pub struct LrParserState<SymDef: SymbolDefinition> {
     actions: Vec<LrParserAction<SymDef>>,
     goto: Vec<LrParserGoto<SymDef>>
+}
+
+impl<SymDef> Debug for LrParserState<SymDef> where SymDef: SymbolDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LrParserState").field("actions", &self.actions).field("goto", &self.goto).finish()
+    }
 }
 
 
