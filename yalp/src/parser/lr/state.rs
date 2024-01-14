@@ -1,31 +1,31 @@
-use crate::{parser::traits::{ParserSymbol, TerminalSymbol}, lexer::traits::LexerSymbol};
+use crate::symbol::traits::SymbolDefinition;
 
 use super::{action::LrParserAction, goto::LrParserGoto};
 
 #[derive(Clone)]
-pub struct LrParserState<G: ParserSymbol> {
-    actions: Vec<LrParserAction<G>>,
-    goto: Vec<LrParserGoto<G>>
+pub struct LrParserState<SymDef: SymbolDefinition> {
+    actions: Vec<LrParserAction<SymDef>>,
+    goto: Vec<LrParserGoto<SymDef>>
 }
 
 
-impl<G: ParserSymbol> LrParserState<G> {
-    pub fn new_from_iterators(actions: impl Iterator<Item=LrParserAction<G>>, goto: impl Iterator<Item=LrParserGoto<G>>) -> Self {
+impl<SymDef: SymbolDefinition> LrParserState<SymDef> {
+    pub fn new_from_iterators(actions: impl Iterator<Item=LrParserAction<SymDef>>, goto: impl Iterator<Item=LrParserGoto<SymDef>>) -> Self {
         Self {
             actions: actions.collect(),
             goto: goto.collect()
         }
     } 
 
-    pub(super) fn iter_terminals<'a>(&'a self) -> impl Iterator<Item=&'a <G::Terminal as LexerSymbol>::Type> + 'a {
+    pub(super) fn iter_terminals<'a>(&'a self) -> impl Iterator<Item=&'a SymDef::Class> + 'a {
         self.actions.iter().map(|a| &a.r#type)
     }
 
-    pub(super) fn get_goto(&self, symbol: &G::Type) -> Option<&LrParserGoto<G>> {
-        self.goto.iter().find(|a: &&LrParserGoto<G>| a.r#type == *symbol)  
+    pub(super) fn get_goto(&self, symbol: &SymDef::Class) -> Option<&LrParserGoto<SymDef>> {
+        self.goto.iter().find(|a| a.r#type == *symbol)  
     }
 
-    pub(super) fn get_action(&self, terminal: &<G::Terminal as LexerSymbol>::Type) -> Option<&LrParserAction<G>> {
+    pub(super) fn get_action(&self, terminal: &SymDef::Class) -> Option<&LrParserAction<SymDef>> {
         self.actions.iter().find(|a| a.r#type == *terminal)
     }
 }

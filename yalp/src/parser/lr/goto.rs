@@ -1,7 +1,7 @@
-use crate::parser::traits::ParserSymbol;
+use crate::symbol::traits::SymbolDefinition;
 
 #[derive(Clone)]
-pub struct LrParserGoto<G: ParserSymbol> {
-    pub(super) r#type: G::Type,
-    pub(super) next_state: usize
+pub struct LrParserGoto<SymDef: SymbolDefinition> {
+    pub(super) r#type:      SymDef::Class,
+    pub(super) next_state:  usize
 }

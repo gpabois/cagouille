@@ -2,7 +2,7 @@ use std::vec;
 
 use lazy_static::lazy_static;
 
-use yalp::parser::{rule::ParserRuleSet, ParserError, traits::{ParserSymbolType, Parser}};
+use yalp::parser::{rule::ParserRuleSet, ParserError, traits::{ParserSymbolClass, Parser}};
 
 use super::{lexer::{VNodeToken, VNodeTokenType}, VElementAttributes, VNode, VElementNode, VElementAttribute, VChildrenNode};
 
@@ -20,7 +20,7 @@ pub enum VNodeParserSymbolType {
     Attribute
 }
 
-impl ParserSymbolType<VNodeTokenType> for VNodeParserSymbolType {
+impl ParserSymbolClass<VNodeTokenType> for VNodeParserSymbolType {
     fn is_terminal(&self) -> bool {
         match self {
             Self::Token(_) => true,

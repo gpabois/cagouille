@@ -478,6 +478,7 @@ name = "yalp"
 version = "0.1.0"
 dependencies = [
  "itertools",
+ "lazy_static",
  "proc-macro2",
  "syn 2.0.48",
 ]

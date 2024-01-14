@@ -1,11 +1,11 @@
-use crate::parser::traits::ParserSymbol;
+use crate::symbol::{traits::SymbolDefinition, Sym};
 
-pub(super) struct LrParserStack<G: ParserSymbol> {
+pub(super) struct LrParserStack<SymDef: SymbolDefinition> {
     pub(super) states: Vec<usize>,
-    pub(super) syms: Vec<G>,  
+    pub(super) syms: Vec<Sym<SymDef>>,  
 }
 
-impl<G: ParserSymbol> LrParserStack<G> {
+impl<SymDef: SymbolDefinition> LrParserStack<SymDef> {
     pub fn new() -> Self {
         Self {
             states: vec![0],
@@ -13,7 +13,7 @@ impl<G: ParserSymbol> LrParserStack<G> {
         }
     }
 
-    pub fn pop<'a>(&'a mut self, count: usize) -> impl Iterator<Item=G> + 'a {
+    pub fn pop<'a>(&'a mut self, count: usize) -> impl Iterator<Item=Sym<SymDef>> + 'a {
         let split = self.syms.len() - count;
         self.states.drain(split..);
         self.syms.drain(split..).into_iter()

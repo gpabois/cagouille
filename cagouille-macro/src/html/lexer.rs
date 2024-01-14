@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use proc_macro2::Span;
 use syn::{parse::ParseStream, Token, spanned::Spanned};
-use yalp::{lexer::{LexerError, traits::LexerSymbol}, parser::traits::TerminalSymbol, symbol::Symbol};
+use yalp::{lexer::{LexerError, traits::LexerSymbol}, parser::traits::Terminal, symbol::Symbol};
 
 pub struct VNodeLexer<'a> {
     input: ParseStream<'a>,
@@ -81,7 +81,7 @@ impl Debug for VNodeToken {
     }
 }
 
-impl TerminalSymbol for VNodeToken {}
+impl Terminal for VNodeToken {}
 
 impl LexerSymbol for VNodeToken {
     type Type = VNodeTokenType;

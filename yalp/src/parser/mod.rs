@@ -1,98 +1,82 @@
-use proc_macro2::Span;
-
-use crate::lexer::{LexerError, TokenSpan, traits::LexerSymbol};
-
-use self::traits::{TerminalSymbol, ParserSymbol};
+use crate::span::Span;
+use crate::lexer::LexerError;
+use crate::symbol::Sym;
+use crate::symbol::traits::{SymbolDefinition, Symbol};
 
 pub mod lr;
 pub mod rule;
 
 #[derive(Clone, Debug)]
-pub enum ParserError<G> where G: ParserSymbol {
-    LexerError(LexerError),
-    UnexpectedToken{
-        got: G::Terminal,
-        expecting: Vec<<G::Terminal as LexerSymbol>::Type>,
-        state_id: usize
-    }
+pub struct ParserError {
+    span: Span,
+    message: String
 }
 
-impl<G> ToString for ParserError<G> where G: ParserSymbol {
+impl ToString for ParserError {
     fn to_string(&self) -> String {
-        match self {
-            Self::UnexpectedToken { got, expecting, state_id } => {
-                format!("unexpecting token {:?}, expecting {:?} [State: {state_id}]", got, expecting)
-            },
-            _ => todo!()
-        }
+        self.message.to_owned()
     }
 }
 
-impl<G> ParserError<G> where G: ParserSymbol {
-    pub fn unexpected_token(got: G::Terminal, expecting: Vec<<G::Terminal as LexerSymbol>::Type>, state_id: usize) -> Self {
-            Self::UnexpectedToken { got, expecting, state_id }
+impl ParserError {
+    pub fn unexpected_token<SymDef: SymbolDefinition>(got: Sym<SymDef>, expecting: Vec<SymDef::Class>) -> Self {
+        Self {
+            span: got.span().clone(),
+            message: format!("unexpecting token {:?}, expecting {:?}", got, expecting)
+        }
     }
 
-    pub fn span(&self) -> TokenSpan {
-        match self {
-            Self::UnexpectedToken { got, expecting, state_id } => {
-                got.span()
-            },
-            _ => Span::call_site().into()
-        }
+    pub fn span(&self) -> Span {
+        self.span.clone()
     }
 } 
 
-
-impl<G> ParserError<G> where G: ParserSymbol{
+impl ParserError {
     pub fn into_syn_error(self) -> syn::Error {
         let span: proc_macro2::Span = self.span().into();
         syn::Error::new(span.into(), &self.to_string())
     }
 }
 
-impl<G> From<LexerError> for ParserError<G> where G: ParserSymbol {
+impl From<LexerError> for ParserError {
     fn from(value: LexerError) -> Self {
-        Self::LexerError(value)
+        Self {
+            span: value.span,
+            message: value.message
+        }
     }
 }
 
-impl<G> Into<syn::Error> for ParserError<G> where G: ParserSymbol {
+impl Into<syn::Error> for ParserError {
     fn into(self) -> syn::Error {
         todo!()
     }
 }
 
-pub type ParserResult<G> = Result<G, ParserError<G>>;
 
 pub mod traits {
     use std::fmt::Debug;
 
-    use crate::{symbol::Symbol, lexer::traits::LexerSymbol};
+    use crate::symbol::traits::SymbolDefinition;
+
     use super::{rule::ParserRuleSet, ParserError};
 
     pub trait Parser<'a> {
-        type Symbol: ParserSymbol;
+        type Symbol;
+        type SymbolDefinition: SymbolDefinition;
 
         /// Generate the parser
-        fn generate(rules: &'a ParserRuleSet<Self::Symbol>) -> Self;
+        fn generate(rules: &'a ParserRuleSet<Self::SymbolDefinition>) -> Self;
 
         /// Parse the stream of tokens
-        fn parse<S, L>(&self, stream: L) -> Result<S, ParserError<Self::Symbol>>
-        where L: crate::lexer::traits::Lexer<Symbol = <Self::Symbol as ParserSymbol>::Terminal>, 
-                Self::Symbol: TryInto<S, Error=ParserError<Self::Symbol>>;
+        fn parse<V, Token, TokenStream, TokenError>(&self, stream: TokenStream) -> Result<V, ParserError>
+        where TokenStream: Iterator<Item = Result<V, TokenError>>, 
+                ParserError: From<TokenError>,
+                Self::Symbol: From<V>,
+                Self::Symbol: TryInto<V, Error=ParserError>;
     }
 
-    pub trait ParserSymbol: Symbol<Self::Type> + Clone {
-        type Terminal: TerminalSymbol + Into<Self>;
-        type Type: ParserSymbolType<<Self::Terminal as LexerSymbol>::Type>;
-    }
-
-    pub trait TerminalSymbol: LexerSymbol + Clone + Debug {
-    }
-
-    pub trait ParserSymbolType<TerminalType> : Clone + PartialEq + Debug {
+    pub trait ParserSymbolClass: Clone + PartialEq + Debug {
         fn is_terminal(&self) -> bool;
-        fn expect_terminal_type(&self) -> TerminalType;
     }
 }
