@@ -14,7 +14,8 @@ impl<SymDef> Debug for LrParserTable<SymDef> where SymDef: SymbolDefinition {
     }
 }
 
-impl<SymDef: SymbolDefinition> FromIterator<LrParserState<SymDef>> for LrParserTable<SymDef> 
+impl<SymDef> FromIterator<LrParserState<SymDef>> for LrParserTable<SymDef> 
+where SymDef: SymbolDefinition
 {
     fn from_iter<T: IntoIterator<Item = LrParserState<SymDef>>>(iter: T) -> Self {
         Self(iter.into_iter().collect())
@@ -22,7 +23,8 @@ impl<SymDef: SymbolDefinition> FromIterator<LrParserState<SymDef>> for LrParserT
 }
 
 impl<SymDef> LrParserTable<SymDef> 
-where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
+where SymDef: SymbolDefinition, 
+        SymDef::Class: ParserSymbolClass
 {
     /// Get the state by its id
     pub fn get(&self, state: usize) -> Option<&LrParserState<SymDef>> {
@@ -42,7 +44,9 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
     }
 }
 
-impl<'a, G> Into<Item<'a, G>> for &'a ParserRule<G> where G: SymbolDefinition + 'static  {
+impl<'a, G> Into<Item<'a, G>> for &'a ParserRule<G> 
+where G: SymbolDefinition + 'static  
+{
     fn into(self) -> Item<'a, G> {
         Item(self, 0)
     }
@@ -52,8 +56,25 @@ struct Item<'a, G>(&'a ParserRule<G>, usize) where G: SymbolDefinition + 'static
 
 impl<'a, SymDef> Debug for Item<'a, SymDef> where SymDef: SymbolDefinition{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Item").field(&self.0).field(&self.1).finish()
+        self.0.lhs.fmt(f)?;
+        f.write_str(" → ")?;
+        for (i, el) in self.0.rhs.iter().enumerate() {
+            if i == self.1  {
+                f.write_str("* ")?;
+            }
+
+            el.fmt(f)?;
+            f.write_str(" ")?;
+        }
+
+        if self.1 == self.0.rhs.len() {
+            f.write_str("* ")?;
+        }
+
+        Ok(())
     }
+
+
 }
 
 impl<'a, G> Clone for Item<'a, G> where G: SymbolDefinition + 'static {
@@ -120,19 +141,25 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass {
 
 struct ItemSet<'a, G>(Vec<Item<'a, G>>) where G: SymbolDefinition;
 
-impl<'a, SymDef> Debug for ItemSet<'a, SymDef> where SymDef: SymbolDefinition {
+impl<'a, SymDef> Debug for ItemSet<'a, SymDef> 
+where SymDef: SymbolDefinition 
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("ItemSet").field(&self.0).finish()
     }
 }
 
-impl<'a, SymDef> FromIterator<Item<'a, SymDef>> for ItemSet<'a, SymDef> where SymDef: SymbolDefinition {
+impl<'a, SymDef> FromIterator<Item<'a, SymDef>> for ItemSet<'a, SymDef> 
+where SymDef: SymbolDefinition 
+{
     fn from_iter<T: IntoIterator<Item = Item<'a, SymDef>>>(iter: T) -> Self {
         Self(iter.into_iter().collect())
     }
 }
 
-impl<'a, G> Clone for ItemSet<'a, G> where G: SymbolDefinition {
+impl<'a, G> Clone for ItemSet<'a, G> 
+where G: SymbolDefinition 
+{
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
@@ -151,7 +178,10 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
 
     pub fn new_with_items<Itm: Into<Item<'a, SymDef>>, It: IntoIterator<Item = Itm>>(items: It) -> Self {
         Self(
-            items.into_iter().map(|i| i.into()).collect::<Vec<_>>()
+            items
+            .into_iter()
+            .map(|i| i.into())
+            .collect()
         )
     }
 
@@ -175,7 +205,7 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
         })
         // Remove empty sets
         .filter(|(_, set)| !set.is_empty())
-        .collect::<Vec<_>>()
+        .collect()
     }
 
     /// Push a new item in the set, returns true if inserted
@@ -199,7 +229,10 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
 
     /// Shift each item in the set
     fn shift(&mut self) -> &mut Self {
-        self.0.iter_mut().filter(|i| i.next_symbol().is_some()).for_each(|i| i.shift());
+        self.0
+        .iter_mut()
+        .filter(|i| i.next_symbol().is_some())
+        .for_each(|i| i.shift());
         self
     }
 
@@ -234,8 +267,17 @@ struct ItemSetState<'a, G> where G: SymbolDefinition {
     next_states:   Vec<(G::Class, usize)>
 }
 
+impl<'a, SymDef> Debug for ItemSetState<'a, SymDef> where SymDef: SymbolDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ItemSetState").field("id", &self.id).field("set", &self.set).field("next_states", &self.next_states).finish()
+    }
+}
+
 impl<'a, SymDef> ItemSetState<'a, SymDef> 
-    where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass {
+    where SymDef: SymbolDefinition, 
+            SymDef::Class: ParserSymbolClass 
+{
+
     fn iter_terminal_symbols<'b>(&'b self) -> impl Iterator<Item=SymDef::Class> + 'b {
         self.next_states
         .iter()
@@ -294,9 +336,15 @@ impl<'a, SymDef> ItemSetState<'a, SymDef>
     }
 }
 
-struct ItemSetTable<'a, G>(Vec<ItemSetState<'a, G>>) where G: SymbolDefinition + 'static;
+struct ItemSetTable<'a, G>(Vec<ItemSetState<'a, G>>) where G: SymbolDefinition;
 
-impl<'a, G> Default for ItemSetTable<'a, G> where G: SymbolDefinition + 'static {
+impl<'a, SymDef> Debug for ItemSetTable<'a, SymDef> where SymDef: SymbolDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ItemSetTable").field(&self.0).finish()
+    }
+}
+
+impl<'a, G> Default for ItemSetTable<'a, G> where G: SymbolDefinition {
     fn default() -> Self {
         Self(Default::default())
     }
@@ -312,7 +360,10 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
             table.new_state(ItemSet::new_with_items([rules.root().expect("missing root rule")]))
         ].into();
         
-        while let Some(state_id) = stack.pop_back() {
+        while let Some(state_id) = stack.pop_front() {
+            // Close the item set.
+            table.get_mut(state_id).unwrap().set.close(rules);
+
             // Get the next states
             let next_states = table
             .get(state_id)
@@ -327,17 +378,22 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
                 }
 
                 let state_id = table.new_state(set);
-                stack.push_front(state_id);
+                stack.push_back(state_id);
+
                 return (sym, state_id);
             })
             .collect::<Vec<_>>();
             
-            table.get_mut(state_id).expect(&format!("missing state {state_id}")).next_states = next_states;
+            table
+            .get_mut(state_id)
+            .expect(&format!("missing state {state_id}"))
+            .next_states = next_states;
         }
 
         table
     }
 
+    /// Iter over states
     pub fn iter(&self) -> impl Iterator<Item=&ItemSetState<'a, SymDef>> {
         self.0.iter()
     }
@@ -349,7 +405,7 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
         if let Some(state) = self.find_by_set(&set) {
             return state.id;
         }
-
+        
         let id = self.0.len();
         let state = ItemSetState{id, set, next_states: vec![]};
         self.0.push(state);
@@ -374,7 +430,7 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
 mod test {
     use lazy_static::lazy_static;
 
-    use crate::{parser::{traits::ParserSymbolClass, rule::ParserRuleSet, ParserError}, symbol::{traits::SymbolDefinition, Sym}};
+    use crate::{parser::{traits::{ParserSymbolClass, Parser}, rule::ParserRuleSet, ParserError, lr::{table::ItemSetTable, LrParser}}, symbol::{traits::SymbolDefinition, Sym}};
 
     use super::{Item, ItemSet, LrParserTable};
 
@@ -566,9 +622,33 @@ mod test {
         assert_eq!(closed_set, expected_set);
     }
 
+
+    #[test]
+    fn item_set_next_reachable_sets() {
+        let r0 = RULES.root().unwrap();
+        let item: Item<'_, SymDef> = r0.into();
+
+        let closed_set = item.close(&RULES);
+        let next_item_sets = closed_set.next_reachable_sets(&RULES);
+        
+        println!("{:?}", next_item_sets);
+    }
+
+    #[test]
+    fn item_set_table_generation() {
+        let item_sets_table = ItemSetTable::<'_, >::build(&RULES);
+        println!("{:?}", item_sets_table)
+    }
+    
     #[test]
     fn table_generation() {
         let table = LrParserTable::generate(&RULES);
         println!("{:?}", table)
+    }
+
+    #[test]
+    fn parser_test() {
+       let parser = LrParser::generate(&RULES);
+
     }
 }
