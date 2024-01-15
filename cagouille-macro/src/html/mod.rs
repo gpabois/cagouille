@@ -2,9 +2,6 @@ use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
 use yalp::parser::traits::Parser;
 
-use self::parser::VNODE_PARSER;
-
-mod lexer;
 mod parser;
 
 #[derive(Clone)]
@@ -13,8 +10,6 @@ pub enum VNode {
     Branch(VBranchNode),
     Element(VElementNode),
     Lit(syn::Lit),
-    Children(VChildrenNode),
-    Empty
 }
 
 impl From<syn::Lit> for VNode {

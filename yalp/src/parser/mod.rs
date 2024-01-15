@@ -26,6 +26,14 @@ impl ParserError {
         }
     }
 
+    pub fn wrong_symbol<SymDef: SymbolDefinition>(got: Sym<SymDef>) -> Self {
+        Self {
+            span: got.span().clone(),
+            message: format!("unexpecting symbol {:?}", got)
+        }
+    }
+
+
     pub fn span(&self) -> Span {
         self.span.clone()
     }

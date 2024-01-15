@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::span::Span;
+use crate::{span::Span, parser::ParserError};
 
 use self::traits::{Symbol, SymbolDefinition};
 
@@ -30,6 +30,17 @@ pub struct Sym<S: SymbolDefinition> {
     pub span:   Span,
     pub r#type: S::Class,
     pub value:  S::Value
+}
+
+impl<V, S> TryInto<V> for Sym<S> 
+where S: SymbolDefinition, V: TryFrom<S::Value>
+{
+    type Error = ParserError;
+
+    fn try_into(self) -> Result<V, Self::Error> {
+        self.value.try_into().map_err(|| ParserError::wrong_symbol(self))
+    }
+
 }
 
 impl<S> Clone for Sym<S> 
