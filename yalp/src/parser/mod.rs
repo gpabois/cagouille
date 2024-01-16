@@ -80,5 +80,7 @@ pub mod traits {
 
     pub trait ParserSymbolClass: Clone + PartialEq + Debug {
         fn is_terminal(&self) -> bool;
+        // End of stream
+        fn eos() -> Self;
     }
 }

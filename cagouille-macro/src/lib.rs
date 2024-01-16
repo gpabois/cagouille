@@ -16,7 +16,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_error]
 #[proc_macro]
-pub fn html(input: TokenStream) -> TokenStream {
+pub fn render(input: TokenStream) -> TokenStream {
     let root = parse_macro_input!(input as html::VNode);
     TokenStream::from(root.into_token_stream())
 }

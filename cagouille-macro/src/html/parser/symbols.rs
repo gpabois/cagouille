@@ -11,7 +11,8 @@ pub enum Class {
     ///////////////
     // Terminals //
     ///////////////
-
+    /// $
+    EOS,
     /// <
     LeftAngle,
     /// </
@@ -74,6 +75,7 @@ pub enum Class {
 impl ParserSymbolClass for Class {
     fn is_terminal(&self) -> bool {
         match self {
+            Class::EOS => true,
             Class::LeftAngle => true,
             Class::ClosingLeftAngle => true,
             Class::SingleRightAngle => true,
@@ -86,12 +88,17 @@ impl ParserSymbolClass for Class {
             _ => false,
         }
     }
+
+    fn eos() -> Self {
+        Class::EOS
+    }
 }
 
 #[derive(Clone)]
 /// The symbol value
 pub(super) enum Value {
     // Terminals
+    EOS,
     LeftAngle(syn::Token![<]),
     ClosingLeftAngle(syn::Token![<], syn::Token![/]),
     SingleRightAngle(syn::Token![/], syn::Token![>]),

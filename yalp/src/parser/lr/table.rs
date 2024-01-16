@@ -35,7 +35,9 @@ where SymDef: SymbolDefinition,
     pub fn generate(rules: &ParserRuleSet<SymDef>) -> Self {
         let item_sets_table = ItemSetTable::<'_, >::build(rules);
 
-        item_sets_table.iter().map(|s| {
+        item_sets_table
+        .iter()
+        .map(|s| {
             LrParserState::new_from_iterators(
                 s.iter_actions(), 
                 s.iter_gotos()
@@ -194,6 +196,16 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
         .map(|i| i.rule_id())
     }
 
+
+    /// Check if the item set is reducing
+    /// Returns the rule id by which the reduction occurs.
+    pub fn is_accepting(&self) -> Option<usize> {
+        self.0
+        .iter()
+        .find(|i| i.next_symbol().is_none() && i.rule_id() == 0)
+        .map(|i| i.rule_id())
+    }
+
     /// Returns the next item sets reachable from this set, grouped by the next symbol.
     pub fn next_reachable_sets(&self, rules: &'a ParserRuleSet<SymDef>) -> Vec<(SymDef::Class, ItemSet<'a, SymDef>)> {
         self
@@ -219,8 +231,7 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
 
     /// Append new items in the set
     pub fn append<I: IntoIterator<Item=Item<'a, SymDef>>>(&mut self, items: I) {
-        self.0.extend(items);
-        self.0.dedup();
+        items.into_iter().for_each(|item| {self.push(item);});
     }
 
     fn is_empty(&self) -> bool {
@@ -253,10 +264,11 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
     /// Close the item set, returns true if new item was added
     fn close(&mut self, rules: &'a ParserRuleSet<SymDef>) -> &mut Self {
         self.0
-            .clone()
-            .into_iter()
-            .map(|item| item.close(rules))
-            .for_each(|subset| self.append(subset.0));
+        .clone()
+        .into_iter()
+        .map(|item| item.close(rules))
+        .for_each(|subset| self.append(subset.0));
+        
         self
     }
 }
@@ -310,6 +322,14 @@ impl<'a, SymDef> ItemSetState<'a, SymDef>
 
     /// Iterate over action-based state transitions
     pub fn iter_actions<'b>(&'b self) -> Box<dyn Iterator<Item=LrParserAction<SymDef>> + 'b> {
+        if let Some(_) = self.set.is_accepting() {
+            return Box::new([
+                LrParserAction {
+                    r#type: <SymDef::Class as ParserSymbolClass>::eos(),
+                    op: LrParserOp::Accept
+                }
+            ].into_iter());
+        }
         if let Some(rule_id) = self.set.is_reducing() {
             let it = self
             .iter_terminal_symbols()
@@ -363,7 +383,7 @@ where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass
         while let Some(state_id) = stack.pop_front() {
             // Close the item set.
             table.get_mut(state_id).unwrap().set.close(rules);
-
+  
             // Get the next states
             let next_states = table
             .get(state_id)
@@ -443,7 +463,8 @@ mod test {
         Zero,
         One,
         Mult,
-        Plus
+        Plus,
+        EOS
     }
 
     impl ParserSymbolClass for Class {
@@ -453,8 +474,13 @@ mod test {
                 Class::One => true,
                 Class::Mult => true,
                 Class::Plus => true,
+                Class::EOS => true,
                 _ => false
             }
+        }
+        
+        fn eos() -> Self {
+            Self::EOS
         }
     }
 
