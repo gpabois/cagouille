@@ -1,10 +1,9 @@
 use std::fmt::{Debug, Formatter};
 
-use yalp::{parser::{traits::ParserSymbolClass, ParserError}, symbol::Sym};
+use yalp::parser::traits::ParserSymbolClass;
 
 use crate::html::{VElementAttributes, VElementNode, VNode, VChildrenNode, VElementAttribute};
 
-use super::VDomRendererParserDef;
 
 #[derive(Clone, Debug, PartialEq)]
 /// The symbol class
@@ -91,7 +90,7 @@ impl ParserSymbolClass for Class {
 
 #[derive(Clone)]
 /// The symbol value
-pub enum Value {
+pub(super) enum Value {
     // Terminals
     LeftAngle(syn::Token![<]),
     ClosingLeftAngle(syn::Token![<], syn::Token![/]),
@@ -124,13 +123,13 @@ impl From<VNode> for Value {
     }
 }
 
-impl TryFrom<Sym<VDomRendererParserDef>> for VNode {
-    type Error = ParserError;
+impl TryInto<VNode> for Value {
+    type Error = ();
 
-    fn try_from(sym: Sym<VDomRendererParserDef>) -> Result<Self, Self::Error> {
-        match sym.value {
+    fn try_into(self) -> Result<VNode, Self::Error> {
+        match self {
             Value::Node(n) => Ok(n),
-            _ => Err(ParserError::unexpected_token(sym, vec![Class::Node]))
+            _ => Err(())
         }
     }
 }
@@ -141,30 +140,171 @@ impl From<VElementNode> for Value {
     }
 }
 
-impl TryFrom<Sym<VDomRendererParserDef>> for VElementNode {
-    type Error = ParserError;
+impl TryInto<VElementNode> for Value {
+    type Error = ();
 
-    fn try_from(sym: Sym<VDomRendererParserDef>) -> Result<Self, Self::Error> {
-        match sym.value {
+    fn try_into(self) -> Result<VElementNode, Self::Error> {
+        match self {
             Value::Element(n) => Ok(n),
-            _ => Err(ParserError::unexpected_token(sym, vec![Class::Node]))
+            _ => Err(())         
+        }
+    }
+}
+
+impl TryInto<syn::Block> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<syn::Block, Self::Error> {
+        match self {
+            Value::Block(bck) => Ok(bck),
+            _ => Err(())
+        }
+    }
+}
+
+impl TryInto<syn::Lit> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<syn::Lit, Self::Error> {
+        match self {
+            Value::Lit(lit) => Ok(lit),
+            _ => Err(())
+        }
+    }
+}
+
+impl From<syn::Ident> for Value {
+    fn from(value: syn::Ident) -> Self {
+        Self::Ident(value)
+    }
+}
+
+impl TryInto<syn::Ident> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<syn::Ident, Self::Error> {
+        match self {
+            Value::Ident(val) => Ok(val),
+            _ => Err(())
+        }
+    }
+}
+
+impl From<SingleTag> for Value {
+    fn from(value: SingleTag) -> Self {
+        Self::SingleTag(value)
+    }
+}
+
+impl TryInto<SingleTag> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<SingleTag, Self::Error> {
+        match self {
+            Value::SingleTag(single_tag) => Ok(single_tag),
+            _ => Err(())
+        }
+    }
+}
+
+impl From<OpenTag> for Value {
+    fn from(value: OpenTag) -> Self {
+        Self::OpenTag(value)
+    }
+}
+
+impl TryInto<OpenTag> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<OpenTag, Self::Error> {
+        match self {
+            Value::OpenTag(val) => Ok(val),
+            _ => Err(())
+        }
+    }
+}
+
+impl TryInto<VChildrenNode> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<VChildrenNode, Self::Error> {
+        match self {
+            Value::ElementChildren(val) => Ok(val),
+            _ => Err(())
+        }
+    }
+}
+
+impl From<CloseTag> for Value {
+    fn from(value: CloseTag) -> Self {
+        Self::CloseTag(value)
+    }
+}
+
+impl TryInto<CloseTag> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<CloseTag, Self::Error> {
+        match self {
+            Value::CloseTag(val) => Ok(val),
+            _ => Err(())
+        }
+    }
+}
+
+impl From<VChildrenNode> for Value {
+    fn from(value: VChildrenNode) -> Self {
+        Self::ElementChildren(value)
+    }
+}
+
+impl From<VElementAttributes> for Value {
+    fn from(value: VElementAttributes) -> Self {
+        Self::ElementAttributes(value)
+    }
+}
+
+impl TryInto<VElementAttributes> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<VElementAttributes, Self::Error> {
+        match self {
+            Value::ElementAttributes(val) => Ok(val),
+            _ => Err(())
+        }
+    }
+}
+
+impl From<VElementAttribute> for Value {
+    fn from(value: VElementAttribute) -> Self {
+        Self::ElementAttribute(value)
+    }
+}
+
+impl TryInto<VElementAttribute> for Value {
+    type Error = ();
+
+    fn try_into(self) -> Result<VElementAttribute, Self::Error> {
+        match self {
+            Value::ElementAttribute(val) => Ok(val),
+            _ => Err(())
         }
     }
 }
 
 #[derive(Clone)]
-struct OpenTag {
-    tag: Option<syn::Ident>,
-    attrs: VElementAttributes,
+pub(super) struct OpenTag {
+    pub tag: Option<syn::Ident>,
+    pub attrs: VElementAttributes,
 }
 
 #[derive(Clone)]
-struct SingleTag {
-    tag: Option<syn::Ident>,
-    attrs: VElementAttributes,
+pub(super) struct SingleTag {
+    pub tag: Option<syn::Ident>,
+    pub attrs: VElementAttributes,
 }
 
 #[derive(Clone)]
-struct CloseTag {
-    tag: Option<syn::Ident>
+pub(super) struct CloseTag {
+    pub tag: Option<syn::Ident>
 }

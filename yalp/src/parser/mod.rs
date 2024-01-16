@@ -8,8 +8,8 @@ pub mod rule;
 
 #[derive(Clone, Debug)]
 pub struct ParserError {
-    span: Span,
-    message: String
+    pub span: Span,
+    pub message: String
 }
 
 impl ToString for ParserError {
@@ -26,10 +26,10 @@ impl ParserError {
         }
     }
 
-    pub fn wrong_symbol<SymDef: SymbolDefinition>(got: Sym<SymDef>) -> Self {
+    pub fn wrong_value<SymDef: SymbolDefinition>(got: Sym<SymDef>) -> Self {
         Self {
             span: got.span().clone(),
-            message: format!("unexpecting symbol {:?}", got)
+            message: format!("unexpecting value {:?}", got.value)
         }
     }
 
@@ -55,12 +55,6 @@ impl From<LexerError> for ParserError {
     }
 }
 
-impl Into<syn::Error> for ParserError {
-    fn into(self) -> syn::Error {
-        todo!()
-    }
-}
-
 
 pub mod traits {
     use std::fmt::Debug;
@@ -70,7 +64,7 @@ pub mod traits {
     use super::{rule::ParserRuleSet, ParserError};
 
     pub trait Parser<'a> {
-        type Symbol;
+        type Symbol: SymbolDefinition;
         type SymbolDefinition: SymbolDefinition;
 
         /// Generate the parser
@@ -78,10 +72,10 @@ pub mod traits {
 
         /// Parse the stream of tokens
         fn parse<V, Token, TokenStream, TokenError>(&self, stream: TokenStream) -> Result<V, ParserError>
-        where TokenStream: Iterator<Item = Result<V, TokenError>>, 
+        where TokenStream: Iterator<Item = Result<Token, TokenError>>, 
                 ParserError: From<TokenError>,
-                Self::Symbol: From<V>,
-                Self::Symbol: TryInto<V, Error=ParserError>;
+                Self::Symbol: From<Token>,
+                <Self::Symbol as SymbolDefinition>::Value: TryInto<V>;
     }
 
     pub trait ParserSymbolClass: Clone + PartialEq + Debug {

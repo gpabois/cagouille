@@ -1,14 +1,12 @@
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
-use yalp::parser::traits::Parser;
 
 mod parser;
 
 #[derive(Clone)]
 pub enum VNode {
-    Block(syn::Block),
-    Branch(VBranchNode),
     Element(VElementNode),
+    Block(syn::Block),
     Lit(syn::Lit),
 }
 
@@ -63,6 +61,12 @@ impl VElementAttribute {
 
 #[derive(Default, Clone)]
 pub struct VElementAttributes(Vec<VElementAttribute>);
+
+impl FromIterator<VElementAttribute> for VElementAttributes {
+    fn from_iter<T: IntoIterator<Item = VElementAttribute>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
 
 impl VElementAttributes {
     pub fn push(&mut self, value: VElementAttribute) {
@@ -122,6 +126,12 @@ impl Into<VNode> for VElementNode {
 #[derive(Clone, Default)]
 pub struct VChildrenNode(Vec<VNode>);
 
+impl FromIterator<VNode> for VChildrenNode {
+    fn from_iter<T: IntoIterator<Item = VNode>>(iter: T) -> Self {
+        Self(iter.into_iter().collect())
+    }
+}
+
 impl VChildrenNode {
     pub fn push(&mut self, node: VNode) {
         self.0.push(node)
@@ -138,18 +148,21 @@ impl ToTokens for VNode {
                 element.to_tokens(tokens)
             },
             VNode::Block(_) => todo!(),
-            VNode::Branch(_) => todo!(),
             VNode::Lit(_) => todo!(),
-            VNode::Children(_) => todo!(),
-            VNode::Empty => todo!(),
         }
     }
 }
 
 impl Parse for VNode {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let lexer = lexer::VNodeLexer::new(input);
-        let root_node = VNODE_PARSER.parse::<VElementNode, _>(lexer).map_err(|err| err.into_syn_error())?;
-        Ok(root_node.into())
+        let el = parser::parse(input)
+        .map_err(|err| {
+            syn::Error::new(
+                err.span().into(), 
+                err.message
+            )
+        })?;
+
+        Ok(el.into())
     }
 }

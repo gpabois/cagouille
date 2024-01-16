@@ -12,7 +12,7 @@ mod table;
 
 pub struct LrParser<'a, SymDef> where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass {
     pub(self) rules: &'a ParserRuleSet<SymDef>,
-    pub(self) table: table::LrParserTable<SymDef>
+    pub table: table::LrParserTable<SymDef>
 }
 
 impl<'a, SymDef> Parser<'a> for LrParser<'a, SymDef> where SymDef: SymbolDefinition, SymDef::Class: ParserSymbolClass {
@@ -27,10 +27,10 @@ impl<'a, SymDef> Parser<'a> for LrParser<'a, SymDef> where SymDef: SymbolDefinit
     }
 
     fn parse<V, Token, TokenStream, TokenError>(&self, stream: TokenStream) -> Result<V, ParserError>
-    where TokenStream: Iterator<Item = Result<V, TokenError>>, 
+    where TokenStream: Iterator<Item = Result<Token, TokenError>>, 
             ParserError: From<TokenError>,
-            Self::Symbol: From<V>,
-            Self::Symbol: TryInto<V, Error=ParserError>
+            Self::Symbol: From<Token>,
+            <Self::Symbol as SymbolDefinition>::Value: TryInto<V>
     {
         let mut exec = LrParserExecution{
             table: &self.table,
@@ -40,8 +40,7 @@ impl<'a, SymDef> Parser<'a> for LrParser<'a, SymDef> where SymDef: SymbolDefinit
         };
 
         let sym = exec.parse()?;
-
-        Sym::try_into(sym)
+        sym.into_value()
     }
 }
 
@@ -95,7 +94,7 @@ where   SymDef: SymbolDefinition,
                     
                     let sym = Sym {
                         span: cursor,
-                        r#type: rule.lhs.clone(),
+                        class: rule.lhs.clone(),
                         value: sym_value
                     };
 

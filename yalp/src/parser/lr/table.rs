@@ -6,7 +6,7 @@ use crate::{parser::{rule::{ParserRuleSet, ParserRule}, traits::ParserSymbolClas
 use super::{state::LrParserState, action::{LrParserAction, LrParserOp}, goto::LrParserGoto};
 
 #[derive(Clone)]
-pub(super) struct LrParserTable<SymDef: SymbolDefinition>(Vec<LrParserState<SymDef>>);
+pub struct LrParserTable<SymDef: SymbolDefinition>(Vec<LrParserState<SymDef>>);
 
 impl<SymDef> Debug for LrParserTable<SymDef> where SymDef: SymbolDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
