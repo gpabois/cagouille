@@ -11,13 +11,13 @@ pub type VDomResult = Result<VNode, Error>;
 
 pub mod traits {
 
-    use futures::AsyncWrite;
+    use futures::{AsyncWrite, AsyncWriteExt};
     use futures::io::{BufWriter, Error};
     use futures::future::LocalBoxFuture;
 
     /// Render object in the stream
     pub trait RenderToStream<'a> {
-        fn render_to_stream<'stream, 'fut, W: AsyncWrite + Unpin>(self, stream: &'stream mut BufWriter<W>) 
+        fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(self, stream: &'stream mut W) 
         -> LocalBoxFuture<'fut, Result<(), Error>>
         where 'a: 'fut, 'stream: 'fut;
     }
@@ -30,7 +30,7 @@ pub enum VNode {
 }
 
 impl<'a> RenderToStream<'a> for &'a VNode {
-    fn render_to_stream<'stream, 'fut, W: AsyncWrite + Unpin>(self, stream: &'stream mut BufWriter<W>) 
+    fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(self, stream: &'stream mut W) 
     -> LocalBoxFuture<'fut, Result<(), std::io::Error>>
     where 'a: 'fut, 'stream: 'fut {
         Box::pin(async move {
