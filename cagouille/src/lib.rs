@@ -5,5 +5,5 @@ pub mod futures;
 
 pub mod prelude {
     pub use cagouille_macro::component;
-    pub use cagouille_macro::html;
+    pub use cagouille_macro::render;
 }

@@ -14,7 +14,7 @@ pub mod traits {
         fn run<'state, 'props, 'fut>(
             state: &'state mut super::FcState<Self::Component>, 
             props: &'props <Self::Component as Component>::Properties
-        ) -> BoxFuture<'fut, crate::vdom::VNodeResult> where 'state: 'fut, 'props: 'fut ;
+        ) -> BoxFuture<'fut, crate::vdom::VDomResult> where 'state: 'fut, 'props: 'fut ;
     }
 }
 
@@ -45,7 +45,7 @@ impl<Component> FunctionComponent<Component>
         }
     }
 
-    pub fn render<'a>(&self, props: &'a Component::Properties) -> BoxFuture<'a, crate::vdom::VNodeResult> {
+    pub fn render<'a>(&self, props: &'a Component::Properties) -> BoxFuture<'a, crate::vdom::VDomResult> {
         let ctx = self.ctx.clone();
         Box::pin(async move {
             let mut ctx = ctx.lock().await;

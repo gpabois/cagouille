@@ -9,6 +9,7 @@ edition = "2021"
 futures = "0.3.30"
 futures-locks = "0.7.1"
 cagouille-macro = {path = "../cagouille-macro"}
+wasm-bindgen = "0.2.90"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"

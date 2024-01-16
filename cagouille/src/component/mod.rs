@@ -9,8 +9,8 @@ pub enum RenderMode {
 }
 
 pub struct State<Component> where Component: traits::Component {
-    pub props: Component::Properties,
-    pub mode: RenderMode,
+    pub props:      Component::Properties,
+    pub mode:       RenderMode,
     pub dehydrated: Option<String>,
 }
 
@@ -27,9 +27,6 @@ pub mod traits {
     use super::{State, ComponentEvent};
 
     pub trait Component: Sized {
-        /// Events triggered by the component
-        type Events: Send + Sync;
-
         /// Properties of the component
         type Properties: Send + Sync;
 
@@ -42,7 +39,6 @@ pub mod traits {
 
         /// Render the component.
         fn render<'s, 'fut>(&self, state: &'s State<Self>) -> BoxFuture<'fut, Result<VNode, Error>> where 's: 'fut;
-
     }
 
 
