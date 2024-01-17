@@ -121,7 +121,9 @@ pub(super) enum Value {
 }
 
 impl Debug for Value {
-    fn fmt(&self, _: &mut Formatter<'_>) -> Result<(), std::fmt::Error> { todo!() }
+    fn fmt(&self, _: &mut Formatter<'_>) -> Result<(), std::fmt::Error> { 
+        todo!() 
+    }
 }
 
 impl From<VNode> for Value {

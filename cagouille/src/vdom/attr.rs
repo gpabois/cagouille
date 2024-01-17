@@ -1,8 +1,9 @@
-use futures::{AsyncWriteExt, AsyncWrite, io::BufWriter, future::LocalBoxFuture};
+use futures::{AsyncWriteExt, AsyncWrite, future::LocalBoxFuture};
 use wasm_bindgen::JsValue;
 
 use super::traits::RenderToStream;
 
+#[derive(Clone)]
 pub enum AttributeValue {
     JsValue(JsValue),
     String(String),

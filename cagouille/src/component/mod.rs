@@ -1,18 +1,4 @@
-
-pub mod function;
-
-
-pub enum RenderMode {
-    Browser,
-    SSR,
-    Hydration
-}
-
-pub struct State<Component> where Component: traits::Component {
-    pub props:      Component::Properties,
-    pub mode:       RenderMode,
-    pub dehydrated: Option<String>,
-}
+pub mod state;
 
 pub enum ComponentEvent<'props, Component> where Component: traits::Component {
     PropertiesChanged{previous: &'props Component::Properties},
@@ -24,28 +10,20 @@ pub mod traits {
     use futures::future::BoxFuture;
 
     use crate::{error::Error, vdom::VNode};
-    use super::{State, ComponentEvent};
+    use super::{ComponentEvent, state::State};
 
     pub trait Component: Sized {
         /// Properties of the component
         type Properties: Send + Sync;
+        
+        /// Internal data of the component
+        type Data: Send + Sync;
 
         /// Create a new component
-        fn new(state: State<Self>) -> Self;
-
-        /// Process an event.
-        fn process_event<'state, 'fut>(&mut self, state: &'state State<Self>, event: ComponentEvent<'_, Self>)  
-        -> BoxFuture<'fut, Result<(), Error>> where 'state: 'fut;
-
+        fn data<'props, 'fut>(props: &'props Self::Properties) -> BoxFuture<'fut, Self::Data> where 'props: 'fut;
+        
         /// Render the component.
-        fn render<'s, 'fut>(&self, state: &'s State<Self>) -> BoxFuture<'fut, Result<VNode, Error>> where 's: 'fut;
-    }
-
-
-    pub trait Mutator<Component> 
-    where Component: super::traits::Component {
-        type Mutation;
-        fn execute(self, mutation: Self::Mutation) -> Self;
+        fn render<'s, 'fut>(state: &'s State<Self>) -> BoxFuture<'fut, Result<VNode, Error>> where 's: 'fut;
     }
 
 }
