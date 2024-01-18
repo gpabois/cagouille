@@ -49,7 +49,7 @@ impl AttributeValue {
 }
 
 impl<'a> RenderToStream<'a> for &'a AttributeValue {
-    fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(self, stream: &'stream mut W) 
+    fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin + ?Sized>(self, stream: &'stream mut W) 
     -> LocalBoxFuture<'fut, Result<(), std::io::Error>>
     where 'a: 'fut, 'stream: 'fut {
         Box::pin(async move {

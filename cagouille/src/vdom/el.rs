@@ -1,10 +1,10 @@
 use futures::{AsyncWriteExt, AsyncWrite, future::LocalBoxFuture};
-use super::{attr::AttributeValue, VNode, traits::RenderToStream, VDomNodeScope};
+use super::{attr::AttributeValue, VNode, traits::RenderToStream, VNodeScope};
 
+#[derive(Default)]
 /// Virtual HTML element
-#[derive(Clone)]
 pub struct ElementNode {
-    scope:      VDomNodeScope,
+    scope:      VNodeScope,
     tag:        String,
     attributes: ElementAttributes,
     children:   Vec<VNode>
@@ -16,19 +16,6 @@ impl Into<VNode> for ElementNode {
     }
 }
 
-
-impl Into<VNode> for &mut ElementNode {
-    fn into(self) -> VNode {
-        VNode::Element(self.to_owned())
-    }
-}
-
-impl Into<Result<VNode, crate::error::Error>> for &mut ElementNode {
-    fn into(self) -> Result<VNode, crate::error::Error> {
-        Ok(self.into())
-    }
-}
-
 impl Into<Result<VNode, crate::error::Error>> for ElementNode {
     fn into(self) -> Result<VNode, crate::error::Error> {
         Ok(self.into())
@@ -36,7 +23,7 @@ impl Into<Result<VNode, crate::error::Error>> for ElementNode {
 }
 
 impl ElementNode {
-    pub fn new<'a, Str: Into<String>>(parent: &VDomNodeScope, tag: Str) -> Self 
+    pub fn new<'a, Str: Into<String>>(parent: &VNodeScope, tag: Str) -> Self 
     {
         Self {
             scope: parent.new_child_scope(),
@@ -51,11 +38,20 @@ impl ElementNode {
         self
     }
 
+    pub fn extend_child<Iter: IntoIterator<Item=VNode>>(&mut self, children: Iter) -> &mut Self {
+        self.children.extend(children);
+        self
+    }
+
     pub fn append_child<IntoVNode: Into<VNode>>(&mut self, child: IntoVNode) -> &mut Self {
         self.children.push(child.into());
         self
     }
-    
+
+    /// Consume the mutable reference, replace its content with default value, and returns the value
+    pub fn consume(&mut self) -> Self {
+        std::mem::replace(self, Self::default())
+    }   
 }
 
 impl<'a> RenderToStream<'a> for &'a ElementNode {
@@ -124,14 +120,15 @@ impl<'a> RenderToStream<'a> for &'a ElementAttributes {
 
 #[cfg(test)]
 mod tests {
-    use crate::vdom::{traits::RenderToStream, VNode, VDomNodeScope};
+    use crate::vdom::{traits::RenderToStream, VNode, VNodeScope};
 
     #[tokio::test]
     async fn test_render_to_stream() {
-        let root_scope = VDomNodeScope::new_root(crate::vdom::RenderMode::SSR);
+        let root_scope = VNodeScope::new_root(crate::vdom::RenderMode::SSR);
         let el: VNode = VNode::element(&root_scope, "div")
         .set_attribute("class", "px-2")
         .append_child(VNode::element(&root_scope, "p"))
+        .consume()
         .into();
 
         let str = el.render_to_string().await.unwrap();
