@@ -1,9 +1,11 @@
 
-use crate::{error::Error, component::traits::Component};
+use crate::component::traits::Component;
 
-use self::{traits::RenderToStream, node_key::VNodeKey, el::{ElementAttributes, ElementNode}, comp::ComponentNode};
+use self::{traits::RenderToStream, el::ElementNode, comp::ComponentNode, mode::Mode};
 use futures::{io::AsyncWriteExt, future::LocalBoxFuture, AsyncWrite};
 use seeded_random::{Seed, Random};
+
+pub mod mode;
 
 mod attr;
 mod el;
@@ -11,7 +13,6 @@ mod comp;
 mod node_ref;
 mod node_key;
 
-pub type VDomResult = Result<VNode, Error>;
 
 #[derive(Clone)]
 pub enum RenderMode {
@@ -27,52 +28,47 @@ impl Default for RenderMode {
 }
 
 /// Node's scope
-pub struct VNodeScope {
+pub struct Scope {
     /// Node key
     pub id: node_key::VNodeKey,
-    
-    /// Render mode
-    pub mode: RenderMode, 
 
     /// The rng generator for children node keys.
     pub(self) rng: Random,
 }
 
-impl Default for VNodeScope {
+impl Default for Scope {
     fn default() -> Self {
-        Self::new_root(Default::default())
+        Self::new_root()
     }
 }
 
-impl Clone for VNodeScope {
+impl Clone for Scope {
     fn clone(&self) -> Self {
-        Self::new(self.id.0, self.mode.clone())
+        Self::new(self.id.0)
     }
 }
 
-impl VNodeScope {
+impl Scope {
     /// New root scope
-    pub fn new_root(mode: RenderMode) -> Self {
-        Self { id: Default::default(), mode, rng: Random::from_seed(Seed::unsafe_new(0)) }
+    pub fn new_root() -> Self {
+        Self { id: Default::default(), rng: Random::from_seed(Seed::unsafe_new(0)) }
     }
     
     /// Create a new rendering scope
-    pub fn new(id: u32, mode: RenderMode) -> Self {
+    pub fn new(id: u32) -> Self {
         Self { 
             id: id.into(), 
-            mode: mode,
             rng: Random::from_seed(Seed::unsafe_new(id.into()))  
         }
     }
 
     /// Create a child scope
-    pub fn new_child_scope(&self) -> VNodeScope {
-        Self::new(self.rng.u32(), self.mode.clone())
+    pub fn new_child_scope(&self) -> Scope {
+        Self::new(self.rng.u32())
     }
 }
 
-pub mod traits 
-{
+pub mod traits {
     use futures::{AsyncWrite, AsyncWriteExt};
     use futures::io::{Error, AllowStdIo};
     use futures::future::LocalBoxFuture;
@@ -80,10 +76,11 @@ pub mod traits
     use std::io::{BufWriter, Cursor};
 
     use super::VNode;
+    use super::mode::Mode;
 
-    pub trait Renderable<'a>: Sized + 'a {
+    pub trait Renderable<'a, M>: Sized + 'a where M: Mode {
         /// Render the object and returns a virtual dom's node.
-        fn render<'fut>(self) -> LocalBoxFuture<'fut, Result<VNode, crate::error::Error>> where 'a: 'fut;
+        fn render<'fut>(self) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>> where 'a: 'fut;
     }
 
     /// Render object in the stream
@@ -116,14 +113,14 @@ pub mod traits
     }
 }
 
-pub enum VNode {
-    Component(comp::AnyComponentNode),
-    Element(el::ElementNode),
+pub enum VNode<M> where M: Mode {
+    Component(comp::AnyComponentNode<M>),
+    Element(el::ElementNode<M>),
     Text(String),
     Empty
 }
 
-impl VNode {
+impl<M> VNode<M> where M: Mode {
     pub fn empty() -> Self {
         Self::Empty
     }
@@ -132,18 +129,17 @@ impl VNode {
         Self::Text(text.into())
     }
 
-    pub fn element<IntoStr: Into<String>>(parent: &VNodeScope, tag: IntoStr) -> ElementNode {
+    pub fn element<IntoStr: Into<String>>(parent: &Scope, tag: IntoStr) -> ElementNode<M> {
         ElementNode::new(parent, tag)
     }
 
-    pub fn component<Comp: Component>(parent: &VNodeScope, props: Comp::Properties) -> ComponentNode<Comp> {
-        ComponentNode::new(parent, props)
+    pub fn component<Comp: Component<M>>(parent: &Scope, props: Comp::Properties, events: Comp::Events) -> ComponentNode<M, Comp> {
+        ComponentNode::new(parent, props, events)
     }
 }
 
-impl<'a> RenderToStream<'a> for &'a VNode {
-    fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(self, stream: &'stream mut W) 
-    -> LocalBoxFuture<'fut, Result<(), std::io::Error>>
+impl<'a, M> RenderToStream<'a> for &'a VNode<M> where M: Mode {
+    fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(self, stream: &'stream mut W) -> LocalBoxFuture<'fut, Result<(), std::io::Error>>
     where 'a: 'fut, 'stream: 'fut {
         Box::pin(async move {
             match self {
@@ -162,9 +158,12 @@ impl<'a> RenderToStream<'a> for &'a VNode {
 pub mod tests {
     use futures::future::LocalBoxFuture;
 
-    use crate::{component::{traits::Component, ctx::Context, event::{EventSlot, traits::{EventSignal, Event}}}, vdom::{VNodeScope, RenderMode, traits::{Renderable, RenderToStream}}};
+    use crate::{
+        component::{traits::Component, ctx::Context, event::{EventSlot, traits::{EventSignal, Event}}}, 
+        vdom::{Scope, mode::DebugMode, traits::RenderToStream}
+    };
 
-    use super::VNode;
+    use super::{VNode, mode::Mode};
 
     pub struct BarData{attr: String}
 
@@ -196,7 +195,7 @@ pub mod tests {
 
     pub struct Bar<'a>{_marker: std::marker::PhantomData<&'a()>}
 
-    impl<'a> Component for Bar<'a> {
+    impl<'a, M> Component<M> for Bar<'a> where M: Mode {
         type Properties = BarProps;
         type Data = BarData;
         type Events = BarEvents<'a>;
@@ -207,7 +206,7 @@ pub mod tests {
             }))
         }
 
-        fn render<'s, 'fut>(ctx: Context<'s, Self>) -> LocalBoxFuture<'fut, Result<VNode, crate::error::Error>> where 's: 'fut {
+        fn render<'s, 'fut>(ctx: Context<'s, M, Self>) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>> where 's: 'fut {
             Box::pin(async move {
                 VNode::element(&ctx.scope, "div")
                 .append_child(VNode::text(&ctx.data.attr))
@@ -224,7 +223,7 @@ pub mod tests {
 
     pub struct Foo;
 
-    impl Component for Foo {
+    impl<M> Component<M> for Foo where M: Mode {
         type Properties = FooProps;
         type Data = FooData;
         type Events = ();
@@ -233,18 +232,20 @@ pub mod tests {
             Box::pin(std::future::ready(Self::Data{}))
         }
 
-        fn render<'s, 'fut>(ctx: Context<'s, Self>) -> LocalBoxFuture<'fut, Result<super::VNode, crate::error::Error>> where 's: 'fut {
+        fn render<'s, 'fut>(ctx: Context<'s, M, Self>) -> LocalBoxFuture<'fut, Result<super::VNode<M>, crate::error::Error>> where 's: 'fut {
             Box::pin(async move {
                 VNode::element(&ctx.scope, "div")
                 .extend_child((0..10_000).map(|_| 
                     VNode::component::<Bar>(
                         &ctx.scope, 
-                        BarProps{attr: "Hello world".into()}
+                        BarProps{
+                            attr: "Hello world".into(),
+                            ..Default::default()
+                        },
+                        BarEvents{
+                            ..Default::default()
+                        }
                     )
-                    .on(BarChanged, EventSlot::new(|payload| {
-                        println!("{payload}")
-                    }))
-                    .consume()
                     .into()
                 ))
                 .consume()
@@ -255,9 +256,14 @@ pub mod tests {
 
     #[tokio::test]
     pub async fn test_foo_root() {
-        let root = VNode::component::<Foo>(&VNodeScope::new_root(RenderMode::SSR), FooProps{});
-        let vnode = root.render().await.unwrap();
-        println!("{}", vnode.render_to_string().await.unwrap())
+        let root_scope = Scope::new_root();
+
+        let root: VNode<_> = VNode::<DebugMode>::component::<Foo>(
+            &root_scope, 
+            FooProps{}, 
+            ()
+        ).into();
+        println!("{}", root.render_to_string().await.unwrap())
 
     }
 }

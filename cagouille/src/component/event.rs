@@ -1,3 +1,5 @@
+use self::traits::Event;
+
 
 pub struct EventSlot<'a, E: traits::Event>(Box<dyn Fn(E::Payload) + 'a>);
 
@@ -22,3 +24,12 @@ pub mod traits {
     }
 }
 
+/// Component's state has been updated.
+pub struct ComponentUpdated;
+impl Event for ComponentUpdated {
+    type Payload = ();
+}
+
+pub struct CommonComponentEvents<'events> {
+    updated: Option<EventSlot<'events, ComponentUpdated>>
+}

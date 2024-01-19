@@ -1,139 +1,90 @@
-use std::{any::TypeId, rc::Rc};
+
+use std::sync::Arc;
 
 use async_std::sync::RwLock;
-use futures::{future::LocalBoxFuture, AsyncWrite, Future};
-use web_sys::Node;
+use futures::{future::LocalBoxFuture, AsyncWrite};
 
-use crate::component::{traits::Component, ctx::Context, event::{traits::{EventSignal, Event}, EventSlot}};
-use super::{VNodeScope, traits::{Renderable, RenderToStream}, VNode};
+use crate::component::{traits::Component, state::State};
+use super::{Scope, traits::{Renderable, RenderToStream}, VNode, mode::Mode};
 
-pub trait IComponentNode {
-    /// Return the component's root virtual node.
-    fn get_node<'a, 'fut>(&'a self) -> LocalBoxFuture<'fut, Result<ComponentVNodeRef, crate::error::Error>> where 'a: 'fut;
-    
-    /// Type ID of the component
-    fn type_id(&self) -> TypeId;
+pub trait IComponentNode<M> where M: Mode {
+    /// Returns the component's root virtual node.
+    fn get_node<'fut>(&self) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>>;
 }
 
-pub struct AnyComponentNode(Box<dyn IComponentNode>);
+pub struct AnyComponentNode<M>(Box<dyn IComponentNode<M>>);
 
-impl<'a> RenderToStream<'a> for &'a AnyComponentNode {
+impl<'a, M> RenderToStream<'a> for &'a AnyComponentNode<M> {
     fn render_to_stream<'stream, 'fut, W: AsyncWrite + futures::AsyncWriteExt + Unpin>(self, stream: &'stream mut W) 
     -> LocalBoxFuture<'fut, Result<(), std::io::Error>>
     where 'a: 'fut, 'stream: 'fut {
-        Box::pin(async {
-            self.0.get_node()
-        })
+        todo!()
     }
 }
-struct Inner<Comp: Component> {
-    // scope of the node
-    scope: VNodeScope,
 
-    // properties of the node
-    props: Comp::Properties,
-
-    // events
-    events: Comp::Events,
-
-    // state
-    state: Option<Comp::Data>,
-
-    // last render node
-    v_node: Option<VNode>,
-
-    // mounted root node
-    dom_node: Option<Node>
+struct Inner<M: Mode> {
+    v_node: Option<VNode<M>>,
+    mode_state: M::ComponentNodeState
 }
 
-impl<Comp> Default for Inner<Comp> where Comp: Component {
+impl<M: Mode> Inner<M> where {
+    pub fn new() -> Self {
+        Self { v_node: None, mode_state: Default::default() }
+    }
+}
+
+pub struct ComponentNode<M, Comp: Component<M>> where Comp: Component<M>, M: Mode {
+    inner: Arc<RwLock<Inner<M>>>,
+    state: State<M, Comp>
+ }
+
+impl<M, Comp> Default for ComponentNode<M, Comp> where Comp: Component<M>, M: Mode {
     fn default() -> Self {
-        Self { scope: Default::default(), props: Default::default(), events: Default::default(), state: Default::default(), v_node: Default::default(), dom_node: Default::default() }
-    }
-}
-
-#[derive(Clone)]
-pub struct ComponentNodeState<Comp>(Rc<RwLock<Inner<Comp>>>) where Comp: Component;
-
-pub struct ComponentNode<Comp>(ComponentNodeState<Comp>) where Comp: Component;
-
-impl<Comp> Default for ComponentNode<Comp> where Comp: Component {
-    fn default() -> Self {
-        Self(Rc::new(RwLock::new(Default::default())))
-    }
-}
-
-impl<Comp> ComponentNode<Comp> where Comp: Component {
-    pub fn new(parent: &VNodeScope, props: Comp::Properties) -> Self {
         Self {
-            scope: parent.new_child_scope(),
-            props,
-            events: Default::default(),
             state: Default::default(),
-            root: Default::default()
+            inner: Arc::new(RwLock::new(Inner::new()))
+        }
+    }
+}
+
+impl<M, Comp> ComponentNode<M, Comp> where Comp: Component<M>, M: Mode {
+    pub fn new(parent: &Scope, props: Comp::Properties, events: Comp::Events) -> Self {
+        Self {
+            state: State::new(parent.new_child_scope(), props, events),
+            inner: Arc::new(RwLock::new(Inner::new()))
         }
     }
 
-    /// Consume the mutable reference, replace its content with default value, and returns the value
-    pub fn consume(&mut self) -> Self {
-        std::mem::replace(self, Self::default())
-    }  
-
-    /// Initialise the component state if it has not been initialised yet.
-    async fn initialise_if_not(&self) {
-        if self.state.read().await.is_none() {
-            let data = Comp::data(&self.props).await;
-            *self.state.write().await = Some(data);
-        }
-    }
-
-    pub fn on<'a, E: Event>(&mut self, _: E, slot: EventSlot<'a, E>) -> &mut Self where Comp::Events: EventSignal<'a, E> {
-        self.events.connect(slot);
+    /// Initialise the node, if it has not been yet initialised.
+    pub async fn initialise(&self) {
         self
+        .state
+        .initialise()
+        .await;
     }
 }
 
-impl<'a, Comp> Renderable<'a> for &'a ComponentNode<Comp> where Comp: Component {
-    fn render<'fut>(self) -> LocalBoxFuture<'fut, Result<VNode, crate::error::Error>> where 'a: 'fut {
-        Box::pin(async {
-            self.initialise_if_not().await;
-
-            let borrowed_data = self.state.read().await;
-            let data = borrowed_data.as_ref().expect("not initialised");
-
-            let ctx = Context{data, scope: &self.scope};
-            Comp::render(ctx).await
-        })
+impl<'a, M, Comp> Renderable<'a, M> for &'a ComponentNode<M, Comp> where Comp: Component<M>, M: Mode{
+    fn render<'fut>(self) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>> where 'a: 'fut {
+        Box::pin(self.state.render())
     }
 }
 
-impl<Comp> IComponentNode for ComponentNode<Comp> where Comp: Component + 'static {
-    fn get_node<'a, 'fut>(&'a self) -> LocalBoxFuture<'fut, Result<ComponentVNodeRef, crate::error::Error>>
-    where 'a: 'fut
-    {
-        Box::pin(async {
-            if !self.root.is_rendered().await {
-                let root = self.render().await?;
-                self.root.set(root).await;
-            }
-    
-            Ok(self.root.clone())
-        })
-    }
 
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<Comp>()
+impl<M, Comp> IComponentNode<M> for ComponentNode<M, Comp> where Comp: Component<M>, M: Mode {
+    fn get_node<'fut>(&self) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>> {
+        todo!()
     }
 }
 
-impl<Comp> Into<AnyComponentNode> for ComponentNode<Comp> where Comp: Component + 'static {
-    fn into(self) -> AnyComponentNode {
+impl<M, Comp> Into<AnyComponentNode<M>> for ComponentNode<M, Comp> where Comp: Component<M> + 'static, M: Mode {
+    fn into(self) -> AnyComponentNode<M> {
         AnyComponentNode(Box::new(self))
     }
 }
 
-impl<Comp> Into<VNode> for ComponentNode<Comp> where Comp: Component + 'static {
-    fn into(self) -> VNode {
+impl<M, Comp> Into<VNode<M>> for ComponentNode<M, Comp> where Comp: Component<M> + 'static, M: Mode {
+    fn into(self) -> VNode<M> {
         VNode::Component(self.into())
     }
 }

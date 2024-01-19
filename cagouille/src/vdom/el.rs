@@ -1,29 +1,34 @@
 use futures::{AsyncWriteExt, AsyncWrite, future::LocalBoxFuture};
-use super::{attr::AttributeValue, VNode, traits::RenderToStream, VNodeScope};
+use super::{attr::AttributeValue, VNode, traits::RenderToStream, Scope, mode::Mode};
 
-#[derive(Default)]
 /// Virtual HTML element
-pub struct ElementNode {
-    scope:      VNodeScope,
+pub struct ElementNode<M> where M: Mode {
+    scope:      Scope,
     tag:        String,
     attributes: ElementAttributes,
-    children:   Vec<VNode>
+    children:   Vec<VNode<M>>
 }
 
-impl Into<VNode> for ElementNode {
-    fn into(self) -> VNode {
+impl<M> Default for ElementNode<M> where M: Mode {
+    fn default() -> Self {
+        Self { scope: Default::default(), tag: Default::default(), attributes: Default::default(), children: Default::default() }
+    }
+}
+
+impl<M> Into<VNode<M>> for ElementNode<M> where M: Mode {
+    fn into(self) -> VNode<M> {
         VNode::Element(self)
     }
 }
 
-impl Into<Result<VNode, crate::error::Error>> for ElementNode {
-    fn into(self) -> Result<VNode, crate::error::Error> {
+impl<M> Into<Result<VNode<M>, crate::error::Error>> for ElementNode<M>  where M: Mode{
+    fn into(self) -> Result<VNode<M>, crate::error::Error> {
         Ok(self.into())
     }
 }
 
-impl ElementNode {
-    pub fn new<'a, Str: Into<String>>(parent: &VNodeScope, tag: Str) -> Self 
+impl<M> ElementNode<M> where M: Mode {
+    pub fn new<'a, Str: Into<String>>(parent: &Scope, tag: Str) -> Self 
     {
         Self {
             scope: parent.new_child_scope(),
@@ -38,12 +43,12 @@ impl ElementNode {
         self
     }
 
-    pub fn extend_child<Iter: IntoIterator<Item=VNode>>(&mut self, children: Iter) -> &mut Self {
+    pub fn extend_child<Iter: IntoIterator<Item=VNode<M>>>(&mut self, children: Iter) -> &mut Self {
         self.children.extend(children);
         self
     }
 
-    pub fn append_child<IntoVNode: Into<VNode>>(&mut self, child: IntoVNode) -> &mut Self {
+    pub fn append_child<IntoVNode: Into<VNode<M>>>(&mut self, child: IntoVNode) -> &mut Self {
         self.children.push(child.into());
         self
     }
@@ -54,9 +59,8 @@ impl ElementNode {
     }   
 }
 
-impl<'a> RenderToStream<'a> for &'a ElementNode {
-    fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(self, stream: &'stream mut W) 
-    -> futures::prelude::future::LocalBoxFuture<'fut, Result<(), std::io::Error>>
+impl<'a, M> RenderToStream<'a> for &'a ElementNode<M> where M: Mode {
+    fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(self, stream: &'stream mut W) -> LocalBoxFuture<'fut, Result<(), std::io::Error>>
     where 'a: 'fut, 'stream: 'fut {
         Box::pin(async {
             stream.write_all("<".as_bytes()).await?;
@@ -65,9 +69,7 @@ impl<'a> RenderToStream<'a> for &'a ElementNode {
             stream.write_all(">".as_bytes()).await?;
 
             for child in self.children.iter() {
-                child
-                .render_to_stream(stream)
-                .await?;
+                child.render_to_stream(stream).await?;
             }
 
             stream.write_all("</".as_bytes()).await?;
@@ -120,12 +122,12 @@ impl<'a> RenderToStream<'a> for &'a ElementAttributes {
 
 #[cfg(test)]
 mod tests {
-    use crate::vdom::{traits::RenderToStream, VNode, VNodeScope};
+    use crate::vdom::{traits::RenderToStream, VNode, Scope, mode::DebugMode};
 
     #[tokio::test]
     async fn test_render_to_stream() {
-        let root_scope = VNodeScope::new_root(crate::vdom::RenderMode::SSR);
-        let el: VNode = VNode::element(&root_scope, "div")
+        let root_scope = Scope::new_root();
+        let el: VNode<_> = VNode::<DebugMode>::element(&root_scope, "div")
         .set_attribute("class", "px-2")
         .append_child(VNode::element(&root_scope, "p"))
         .consume()
