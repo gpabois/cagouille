@@ -2,7 +2,8 @@ use futures::{future::LocalBoxFuture, Future};
 
 use crate::vdom::{Scope, mode::Mode};
 
-use super::{traits::Component, state::WeakStateRef, event::traits::{Event, EventSignal}};
+use super::{traits::Component, state::WeakStateRef};
+use crate::event::traits::{Event, EventSignal};
 
 /// Read-only component context
 pub struct Context<'ctx, M, Comp> where Comp: Component<M>, M: Mode {    

@@ -1,11 +1,15 @@
 
+use std::sync::Arc;
+
 use crate::component::traits::Component;
 
-use self::{traits::RenderToStream, el::ElementNode, comp::ComponentNode, mode::Mode};
-use futures::{io::AsyncWriteExt, future::LocalBoxFuture, AsyncWrite};
+use self::{traits::RenderToStream, el::ElementNode, comp::ComponentNode, mode::Mode, node_key::VNodeKey};
+use async_std::sync::RwLock;
+use futures::{io::AsyncWriteExt, future::{LocalBoxFuture, join_all}, AsyncWrite};
 use seeded_random::{Seed, Random};
 
 pub mod mode;
+pub mod diff;
 
 mod attr;
 mod el;
@@ -14,19 +18,6 @@ mod node_ref;
 mod node_key;
 
 
-#[derive(Clone)]
-pub enum RenderMode {
-    DOM,
-    SSR,
-    Hydration
-}
-
-impl Default for RenderMode {
-    fn default() -> Self {
-        Self::DOM
-    }
-}
-
 /// Node's scope
 pub struct Scope {
     /// Node key
@@ -34,6 +25,15 @@ pub struct Scope {
 
     /// The rng generator for children node keys.
     pub(self) rng: Random,
+}
+
+#[derive(Clone)]
+pub struct ScopeRef(pub(super) Arc<RwLock<Scope>>);
+
+impl From<Scope> for ScopeRef {
+    fn from(value: Scope) -> Self {
+        Self(Arc::new(RwLock::new(value)))
+    }
 }
 
 impl Default for Scope {
@@ -121,6 +121,14 @@ pub enum VNode<M> where M: Mode {
 }
 
 impl<M> VNode<M> where M: Mode {
+    pub fn id(&self) -> &VNodeKey {
+        match self {
+            VNode::Component(comp) => comp.id(),
+            VNode::Element(_) => todo!(),
+            VNode::Text(_) => todo!(),
+            VNode::Empty => todo!(),
+        }
+    }
     pub fn empty() -> Self {
         Self::Empty
     }
@@ -135,6 +143,26 @@ impl<M> VNode<M> where M: Mode {
 
     pub fn component<Comp: Component<M>>(parent: &Scope, props: Comp::Properties, events: Comp::Events) -> ComponentNode<M, Comp> {
         ComponentNode::new(parent, props, events)
+    }
+    
+    /// Initialise the virtual tree
+    pub fn initialise<'a, 'fut>(&'a self) -> LocalBoxFuture<'fut, ()> 
+    where 'a: 'fut 
+    {
+        Box::pin(async move {
+            match self {
+                VNode::Component(comp) => {
+                    comp.initialise().await;
+                },
+                VNode::Element(el) => {
+                    join_all(el.iter_children().map(|n| {
+                        n.initialise()
+                    })).await;
+                },
+                VNode::Text(_) => {},
+                VNode::Empty => {},
+            }
+        })
     }
 }
 
@@ -159,8 +187,8 @@ pub mod tests {
     use futures::future::LocalBoxFuture;
 
     use crate::{
-        component::{traits::Component, ctx::Context, event::{EventSlot, traits::{EventSignal, Event}}}, 
-        vdom::{Scope, mode::DebugMode, traits::RenderToStream}
+        component::{traits::Component, ctx::Context}, 
+        vdom::{Scope, mode::DebugMode, traits::RenderToStream}, event::{EventSlot, traits::{EventSignal, Event}}
     };
 
     use super::{VNode, mode::Mode};
@@ -206,6 +234,7 @@ pub mod tests {
             }))
         }
 
+        
         fn render<'s, 'fut>(ctx: Context<'s, M, Self>) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>> where 's: 'fut {
             Box::pin(async move {
                 VNode::element(&ctx.scope, "div")
@@ -214,13 +243,16 @@ pub mod tests {
                 .into()
             })
         }
+
+        fn initialised<'ctx, 'fut>(ctx: crate::component::ctx::MutContext<'ctx, M, Self>) -> LocalBoxFuture<'fut, ()> where 'ctx: 'fut {
+            Box::pin(async {})
+        }
     }
 
     pub struct FooData{}
 
     #[derive(Default)]
     pub struct FooProps{}
-
     pub struct Foo;
 
     impl<M> Component<M> for Foo where M: Mode {
@@ -252,18 +284,16 @@ pub mod tests {
                 .into()
             })      
         }
+
+        fn initialised<'ctx, 'fut>(ctx: crate::component::ctx::MutContext<'ctx, M, Self>) -> LocalBoxFuture<'fut, ()> where 'ctx: 'fut {
+            todo!()
+        }
     }
 
     #[tokio::test]
     pub async fn test_foo_root() {
-        let root_scope = Scope::new_root();
-
-        let root: VNode<_> = VNode::<DebugMode>::component::<Foo>(
-            &root_scope, 
-            FooProps{}, 
-            ()
-        ).into();
-        println!("{}", root.render_to_string().await.unwrap())
+        let tree = DebugMode::render_to_string::<Foo>(FooProps{}, ()).await;
+        println!("{}", tree)
 
     }
 }

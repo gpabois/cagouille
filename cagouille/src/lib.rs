@@ -1,4 +1,5 @@
 pub mod error;
+pub mod event;
 pub mod vdom;
 pub mod component;
 pub mod futures;

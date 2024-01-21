@@ -1,12 +1,14 @@
 use futures::{AsyncWriteExt, AsyncWrite, future::LocalBoxFuture};
-use super::{attr::AttributeValue, VNode, traits::RenderToStream, Scope, mode::Mode};
+use super::{attr::AttributeValue, VNode, traits::RenderToStream, Scope, mode::Mode, node_key::VNodeKey};
+
+pub mod event;
 
 /// Virtual HTML element
 pub struct ElementNode<M> where M: Mode {
-    scope:      Scope,
-    tag:        String,
-    attributes: ElementAttributes,
-    children:   Vec<VNode<M>>
+    pub(super) scope:      Scope,
+    pub(super) tag:        String,
+    pub(super) attributes: ElementAttributes,
+    pub(super) children:   Vec<VNode<M>>
 }
 
 impl<M> Default for ElementNode<M> where M: Mode {
@@ -38,6 +40,10 @@ impl<M> ElementNode<M> where M: Mode {
         }
     }
 
+    pub fn id(&self) -> &VNodeKey {
+        &self.scope.id
+    }
+
     pub fn set_attribute<IntoStr: Into<String>, IntoVal: Into<AttributeValue>>(&mut self, name: IntoStr, value: IntoVal) -> &mut Self {
         self.attributes.set(name, value);
         self
@@ -51,6 +57,10 @@ impl<M> ElementNode<M> where M: Mode {
     pub fn append_child<IntoVNode: Into<VNode<M>>>(&mut self, child: IntoVNode) -> &mut Self {
         self.children.push(child.into());
         self
+    }
+
+    pub fn iter_children(&self) -> impl Iterator<Item = &VNode<M>> {
+        self.children.iter()
     }
 
     /// Consume the mutable reference, replace its content with default value, and returns the value

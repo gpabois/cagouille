@@ -12,7 +12,6 @@ where Comp: Component<M>, M: Mode {
     props:  Comp::Properties,
     data:   Option<Comp::Data>,
     events: Comp::Events,
-
 }
 
 impl<M, Comp> Default for Inner<M, Comp> where Comp: Component<M>, M: Mode {
@@ -48,8 +47,8 @@ impl<'a, M, Comp> StateRef<'a, M, Comp> where Comp: Component<M>, M: Mode {
     pub fn to_context(&'a self, weak: WeakStateRef<M, Comp>) -> Context<'a, M, Comp> {
         Context {
             weak,
-            scope: &self.0.scope,
-            data: self.0.data.as_ref().expect("not initialised"),
+            scope:  &self.0.scope,
+            data:   self.0.data.as_ref().expect("not initialised"),
             events: &self.0.events
         }
     }
@@ -104,8 +103,14 @@ impl<M, Comp> State<M, Comp> where Comp: Component<M>, M: Mode {
 
     /// Initialise the data of the component.
     pub async fn initialise(&self) {
-        let mut mut_state = self.0.write().await;
-        mut_state.data = Some(Comp::data(&mut_state.props).await);
+        {
+            let mut mut_state = self.0.write().await;
+            mut_state.data = Some(Comp::data(&mut_state.props).await);
+        }
+
+        let mut borrowed = self.borrow_mut().await;
+        let ctx = borrowed.to_mut_context(self.weak());
+        Comp::initialised(ctx).await;
     }
 
     /// Render the component
@@ -113,6 +118,7 @@ impl<M, Comp> State<M, Comp> where Comp: Component<M>, M: Mode {
         let weak = self.weak();
         let borrowed = self.borrow().await;
         let ctx = borrowed.to_context(weak);
+        
         Comp::render(ctx).await
     }
 

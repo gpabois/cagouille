@@ -15,7 +15,7 @@ pub mod traits {
     use futures::future::LocalBoxFuture;
 
     use crate::{error::Error, vdom::{VNode, mode::Mode}};
-    use super::ctx::Context;
+    use super::ctx::{Context, MutContext};
 
     pub trait Component<M>: Sized where M: Mode {
         /// Properties of the component
@@ -30,7 +30,10 @@ pub mod traits {
         /// Create a new component
         fn data<'props, 'fut>(props: &'props Self::Properties) -> LocalBoxFuture<'fut, Self::Data> where 'props: 'fut;
         
+        /// Called after the component has been initialised
+        fn initialised<'ctx, 'fut>(ctx: MutContext<'ctx, M, Self>) -> LocalBoxFuture<'fut, ()> where 'ctx: 'fut;
+
         /// Render the component.
-        fn render<'ctx, 'fut>(data: Context<'ctx, M, Self>) -> LocalBoxFuture<'fut, Result<VNode<M>, Error>> where 'ctx: 'fut;
+        fn render<'ctx, 'fut>(ctx: Context<'ctx, M, Self>) -> LocalBoxFuture<'fut, Result<VNode<M>, Error>> where 'ctx: 'fut;
     }
 }
