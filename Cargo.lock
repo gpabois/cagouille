@@ -242,6 +242,7 @@ name = "cagouille-macro"
 version = "0.1.0"
 dependencies = [
  "cagouille",
+ "either",
  "lazy_static",
  "phf",
  "proc-macro-error",

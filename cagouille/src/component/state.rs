@@ -1,10 +1,35 @@
-use std::{sync::{Arc, Weak}, ops::DerefMut};
+use std::{any::Any, ops::DerefMut, sync::{Arc, Weak}};
 
-use async_std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use async_std::{sync::{RwLock, RwLockReadGuard, RwLockWriteGuard}, task};
+use futures::future::LocalBoxFuture;
+use tokio::pin;
 
-use crate::vdom::{Scope, VNode, mode::Mode};
+use crate::{df::traits::{AsyncDifferentiable, Differentiable, Df}, vdom::{Scope, VNode, mode::Mode}};
 
 use super::{traits::Component, ctx::{MutContext, Context}};
+
+/// Differential of a component state
+pub struct StateDf<M, Comp> where Comp: Component<M>, M: Mode {
+    // Differential of properties
+    props_df: <Comp::Properties as Differentiable>::Df
+}
+
+impl<M, Comp> Df<State<M, Comp>> for StateDf<M, Comp> where M: Mode, Comp: Component<M> + 'static {
+    fn apply(self, dest: &mut State<M, Comp>) {
+        let weak = dest.weak();
+
+        // Schedule a patch of the component.
+        tokio::task::spawn_local(async move {
+            let rf = weak.upgrade();
+
+            if rf.is_none() {
+                return;
+            }
+
+            rf.unwrap().patch(self).await
+        });
+    }
+}
 
 struct Inner<M, Comp> 
 where Comp: Component<M>, M: Mode {
@@ -87,7 +112,45 @@ impl<M, Comp> Default for State<M, Comp> where Comp: Component<M>, M: Mode {
     }
 }
 
-impl<M, Comp> State<M, Comp> where Comp: Component<M>, M: Mode {
+impl<M, Comp> Clone for State<M, Comp> where Comp: Component<M>, M: Mode {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<M, Comp> AsyncDifferentiable for State<M, Comp> where M: Mode, Comp: Component<M> + 'static {
+    type Df = StateDf<M, Comp>;
+
+    fn df<'a, 'fut>(src: &'a Self, dest: &'a Self) -> LocalBoxFuture<'fut, Self::Df> where 'a: 'fut {
+        let fut = async {
+            let rsrc = src.0.read().await;
+            let rdest = dest.0.read().await;
+
+            StateDf {
+                props_df: <Comp::Properties as Differentiable>::df(&rsrc.props, &rdest.props)
+            }
+        };
+
+        Box::pin(fut)
+    }
+}
+
+impl<M, Comp> State<M, Comp> where Comp: Component<M> + 'static, M: Mode {
+    /// Patch the state of the component
+    pub async fn patch(&mut self, ds: StateDf<M, Comp>) {
+        ds.apply(self)
+    }
+}
+
+pub struct AnyState(Box<dyn Any>);
+
+impl AnyState {
+    pub fn downcast<M, Comp>(self) -> Option<State<M, Comp>> where M: Mode, Comp: Component<M> + 'static {
+        self.0.downcast::<State<M,Comp>>().ok().map(|b| *b)
+    }
+}
+
+impl<M, Comp> State<M, Comp> where Comp: Component<M> + 'static, M: Mode {
     pub fn new(scope: Scope, props: Comp::Properties, events: Comp::Events) -> Self {
         Self(
             Arc::new(RwLock::new(
@@ -101,6 +164,11 @@ impl<M, Comp> State<M, Comp> where Comp: Component<M>, M: Mode {
         )
     }
 
+    /// Erase the state's concrete type.
+    pub fn to_any(&self) -> AnyState {
+        AnyState(Box::new(self.clone()))
+    }
+    
     /// Initialise the data of the component.
     pub async fn initialise(&self) {
         {

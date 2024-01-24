@@ -4,6 +4,8 @@ pub mod ctx;
 pub mod event;
 pub mod state;
 
+pub use state::State;
+
 pub enum ComponentEvent<'props, M, Component> where Component: traits::Component<M>, M: Mode {
     PropertiesChanged{previous: &'props Component::Properties},
     Rendered,
@@ -14,12 +16,12 @@ pub mod traits {
 
     use futures::future::LocalBoxFuture;
 
-    use crate::{error::Error, vdom::{VNode, mode::Mode}};
+    use crate::{df::traits::Differentiable, error::Error, vdom::{VNode, mode::Mode}};
     use super::ctx::{Context, MutContext};
 
     pub trait Component<M>: Sized where M: Mode {
         /// Properties of the component
-        type Properties: Send + Sync + Default;
+        type Properties: Send + Sync + Default + Differentiable;
         
         /// Events
         type Events: Default;

@@ -15,8 +15,8 @@ impl Mode for DebugMode {
     type ComponentNodeState = ();
 
     /// We recursively initialise the whole tree
-    fn on_component_node_initialised<'a, 'fut, Comp: Component<Self>>(node: &'a ComponentNode<Self, Comp>) -> LocalBoxFuture<'fut, ()> 
-    where 'a: 'fut
+    fn on_component_node_initialised<'a, 'fut, Comp>(node: &'a ComponentNode<Self, Comp>) -> LocalBoxFuture<'fut, ()> 
+    where 'a: 'fut, Comp: Component<Self> + 'static
     {
         Box::pin(async {
             // Initialise rendering 
@@ -46,5 +46,5 @@ pub trait Mode: Sized + 'static {
     type ComponentNodeState: Default;
 
     /// What to do once a component node has been initialised.
-    fn on_component_node_initialised<'a, 'fut, Comp: Component<Self>>(comp: &'a ComponentNode<Self, Comp>) -> LocalBoxFuture<'fut, ()> where 'a: 'fut;
+    fn on_component_node_initialised<'a, 'fut, Comp>(comp: &'a ComponentNode<Self, Comp>) -> LocalBoxFuture<'fut, ()> where 'a: 'fut, Comp: Component<Self> + 'static;
 }

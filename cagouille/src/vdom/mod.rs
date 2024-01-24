@@ -1,15 +1,16 @@
 
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::component::traits::Component;
 
-use self::{traits::RenderToStream, el::ElementNode, comp::ComponentNode, mode::Mode, node_key::VNodeKey};
+use self::{traits::RenderToStream, el::ElementNode, comp::ComponentNode, mode::Mode};
 use async_std::sync::RwLock;
 use futures::{io::AsyncWriteExt, future::{LocalBoxFuture, join_all}, AsyncWrite};
 use seeded_random::{Seed, Random};
 
 pub mod mode;
-pub mod diff;
+pub mod df;
+pub mod scope;
 
 mod attr;
 mod el;
@@ -17,56 +18,8 @@ mod comp;
 mod node_ref;
 mod node_key;
 
-
-/// Node's scope
-pub struct Scope {
-    /// Node key
-    pub id: node_key::VNodeKey,
-
-    /// The rng generator for children node keys.
-    pub(self) rng: Random,
-}
-
-#[derive(Clone)]
-pub struct ScopeRef(pub(super) Arc<RwLock<Scope>>);
-
-impl From<Scope> for ScopeRef {
-    fn from(value: Scope) -> Self {
-        Self(Arc::new(RwLock::new(value)))
-    }
-}
-
-impl Default for Scope {
-    fn default() -> Self {
-        Self::new_root()
-    }
-}
-
-impl Clone for Scope {
-    fn clone(&self) -> Self {
-        Self::new(self.id.0)
-    }
-}
-
-impl Scope {
-    /// New root scope
-    pub fn new_root() -> Self {
-        Self { id: Default::default(), rng: Random::from_seed(Seed::unsafe_new(0)) }
-    }
-    
-    /// Create a new rendering scope
-    pub fn new(id: u32) -> Self {
-        Self { 
-            id: id.into(), 
-            rng: Random::from_seed(Seed::unsafe_new(id.into()))  
-        }
-    }
-
-    /// Create a child scope
-    pub fn new_child_scope(&self) -> Scope {
-        Self::new(self.rng.u32())
-    }
-}
+pub use scope::Scope;
+pub use node_key::VNodeKey;
 
 pub mod traits {
     use futures::{AsyncWrite, AsyncWriteExt};
@@ -113,6 +66,24 @@ pub mod traits {
     }
 }
 
+
+/// A sharable, and mutable reference to a node.
+pub(self) struct SharedVNode<M: Mode>(pub(super) Arc<RwLock<Option<VNode<M>>>>);
+
+impl<M: Mode> Clone for SharedVNode<M> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<M: Mode> Default for SharedVNode<M> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+pub struct MaybeVNodeRef<'a, M>(Option<&'a VNode<M>>) where M: Mode;
+
 pub enum VNode<M> where M: Mode {
     Component(comp::AnyComponentNode<M>),
     Element(el::ElementNode<M>),
@@ -120,15 +91,27 @@ pub enum VNode<M> where M: Mode {
     Empty
 }
 
-impl<M> VNode<M> where M: Mode {
-    pub fn id(&self) -> &VNodeKey {
+impl<M> Debug for VNode<M> where M: Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VNode::Component(comp) => comp.id(),
-            VNode::Element(_) => todo!(),
-            VNode::Text(_) => todo!(),
-            VNode::Empty => todo!(),
+            Self::Component(_) => f.debug_tuple("Component").finish(),
+            Self::Element(_) => f.debug_tuple("Element").finish(),
+            Self::Text(arg0) => f.debug_tuple("Text").field(arg0).finish(),
+            Self::Empty => write!(f, "Empty"),
         }
     }
+}
+
+impl<M> VNode<M> where M: Mode {
+    pub fn id(&self) -> Option<&VNodeKey> {
+        match self {
+            VNode::Component(comp) => Some(comp.id()),
+            VNode::Element(el) => Some(el.id()),
+            VNode::Text(_) => None,
+            VNode::Empty => None,
+        }
+    }
+
     pub fn empty() -> Self {
         Self::Empty
     }
@@ -141,8 +124,15 @@ impl<M> VNode<M> where M: Mode {
         ElementNode::new(parent, tag)
     }
 
-    pub fn component<Comp: Component<M>>(parent: &Scope, props: Comp::Properties, events: Comp::Events) -> ComponentNode<M, Comp> {
+    pub fn component<Comp>(parent: &Scope, props: Comp::Properties, events: Comp::Events) -> ComponentNode<M, Comp> where Comp: Component<M> + 'static {
         ComponentNode::new(parent, props, events)
+    }
+
+    pub fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item=&'a VNode<M>> + 'a> {
+        match self {
+            VNode::Element(el) => Box::new(el.iter_children()),
+            _ => Box::new(std::iter::empty())
+        }
     }
     
     /// Initialise the virtual tree
@@ -188,7 +178,8 @@ pub mod tests {
 
     use crate::{
         component::{traits::Component, ctx::Context}, 
-        vdom::{Scope, mode::DebugMode, traits::RenderToStream}, event::{EventSlot, traits::{EventSignal, Event}}
+        vdom::mode::DebugMode, 
+        event::{EventSlot, traits::{EventSignal, Event}}
     };
 
     use super::{VNode, mode::Mode};

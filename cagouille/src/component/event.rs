@@ -1,7 +1,6 @@
 
 use crate::event::{EventSlot, traits::Event};
 
-
 /// Component's state has been updated.
 pub struct ComponentUpdated;
 impl Event for ComponentUpdated {
