@@ -1,5 +1,3 @@
-use self::traits::Differentiable;
-
 pub mod traits {
     use futures::future::LocalBoxFuture;
 
