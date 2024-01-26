@@ -6,7 +6,7 @@ mod utils;
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
 use quote::ToTokens;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
 
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -27,8 +27,12 @@ pub fn render(input: TokenStream) -> TokenStream {
 /// Implement differentiability for the struct
 pub fn differentiable(input: TokenStream) -> TokenStream {
     let derive: DeriveInput = parse_macro_input!(input);
-    
-    let df_struct = df::generate_df_struct(&derive);
+    df::derive_differentiable(&derive, syn::Ident::new("::cagouille", derive.span())).into()
+}
 
-    df_struct
+#[proc_macro_derive(Self_Differentiable)]
+/// Implement differentiability for the struct
+pub fn self_differentiable(input: TokenStream) -> TokenStream {
+    let derive: DeriveInput = parse_macro_input!(input);
+    df::derive_differentiable(&derive, syn::Ident::new("crate", derive.span())).into()
 }

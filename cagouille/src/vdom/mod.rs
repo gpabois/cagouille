@@ -174,6 +174,7 @@ impl<'a, M> RenderToStream<'a> for &'a VNode<M> where M: Mode {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::prelude::Self_Differentiable;
     use futures::future::LocalBoxFuture;
 
     use crate::{
@@ -186,7 +187,7 @@ pub mod tests {
 
     pub struct BarData{attr: String}
 
-    #[derive(Default)]
+    #[derive(Default, Self_Differentiable)]
     pub struct BarProps{attr: String}
 
     pub struct BarChanged;
@@ -242,7 +243,7 @@ pub mod tests {
 
     pub struct FooData{}
 
-    #[derive(Default)]
+    #[derive(Default, Self_Differentiable)]
     pub struct FooProps{}
     pub struct Foo;
 
