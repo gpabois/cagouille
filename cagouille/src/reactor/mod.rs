@@ -1,34 +1,28 @@
 
 pub mod reactor;
-pub mod effect;
-pub mod reactive;
+pub mod interaction;
+pub mod ray;
+pub mod tracker;
 
-pub use effect::Effect;
-use futures::future::LocalBoxFuture;
+pub use interaction::Interaction;
 pub use reactor::Reactor;
-pub use reactive::Reactive;
-
-pub async fn use_effect<'comp, F: Fn() -> LocalBoxFuture<'static, ()> + 'comp>(f: F, reactor: &Reactor<'comp>) {
-    let effect = Effect::new(f);
-    reactor.with_effect(&effect).await;
-    effect.call().await;
-}
+pub use ray::Ray;
 
 #[cfg(test)]
 mod test {
-    use super::Reactor;
-    use super::Reactive;
-    use super::use_effect;
+    use super::{Reactor, Ray};
+
+    pub struct Data {
+        foo: Ray<Self, usize>
+    }
 
     #[tokio::test]
     pub async fn simple_test() {
-        let reactor = Reactor::new();
-        let data = Reactive::new(&reactor, 5);
+        let reactor = Reactor::new(|r| {
+            Data {
+                foo: r.use_ray(0)
+            }
+        });
 
-        use_effect(|| {
-            Box::pin(async {
-                println!("react !")
-            })
-        }, &reactor).await;
     }
 }
