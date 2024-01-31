@@ -1,28 +1,43 @@
 
 pub mod reactor;
 pub mod interaction;
-pub mod ray;
+pub mod atom;
+pub mod wave;
 pub mod tracker;
 
 pub use interaction::Interaction;
 pub use reactor::Reactor;
-pub use ray::Ray;
+pub use atom::Atom;
+pub use wave::Wave;
+
 
 #[cfg(test)]
 mod test {
-    use super::{Reactor, Ray};
+    use super::{Reactor, Atom};
 
-    pub struct Data {
-        foo: Ray<Self, usize>
+    pub struct Matter {
+        foo: Atom<Self, usize>
     }
 
     #[tokio::test]
     pub async fn simple_test() {
         let reactor = Reactor::new(|r| {
-            Data {
-                foo: r.use_ray(0)
+            Matter {
+                foo: r.atom(0)
             }
         });
 
+        reactor.interact(|matter| {
+            println!("Reaction {}", *matter.foo);
+        }).unwrap().await.unwrap();
+
+        reactor.interact(|matter| {
+            // Must trigger the first interaction
+            *matter.foo = 10;
+        }).unwrap().await.unwrap();
+        
+        reactor.nuke().unwrap().await.unwrap();
+        
+        reactor.wait_for_nuke().await;
     }
 }
