@@ -3,14 +3,14 @@ use std::fmt::Debug;
 use std::ops::DerefMut;
 use std::pin::Pin;
 use std::sync::Arc;
-use async_std::channel::{unbounded, Sender};
+use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::RwLock;
 use std::future::Future;
 use tokio::task::{JoinError, JoinHandle};
 
 use super::wave::WaveSource;
 use super::{Atom, Wave};
-use super::interaction::Interaction;
+use super::interaction::{Interaction, LocalInteraction};
 use super::tracker::Tracker;
 
 pub(super) struct Current<Matter>(Arc<Option<Interaction<Matter>>>);
@@ -55,6 +55,11 @@ impl Debug for ReactorError {
     }
 }
 
+pub enum LocalReaction<Matter> {
+    /// Execute an interaction
+    Interact(LocalInteraction<Matter>)
+}
+
 pub enum Reaction<Matter>{
     /// Execute an interaction
     Interact(Interaction<Matter>),
@@ -96,9 +101,51 @@ impl<Matter> Clone for Reactor<Matter> {
     }
 }
 
+pub async fn loop_reactor<Matter, F: (FnOnce(&Reactor<Matter>) -> Matter) + Send + 'static>(init_matter: F, foreign_recv: Receiver<Reaction<Matter>>, reactor: Reactor<Matter>) {
+    let current = reactor.current.clone();
+    let mut matter = init_matter(&reactor);
+
+    let (local_sender, local_recv) = unbounded::<LocalReaction<Matter>>();
+    
+    loop {
+        tokio::select! {
+            Ok(reaction) = foreign_recv.recv() => {
+                match reaction {
+                    Reaction::Interact(interaction) => {
+                        current.set_interaction(Some(interaction.clone()));
+                        interaction.call(&mut matter);
+                        current.set_interaction(None);
+                    },
+                    Reaction::Nuke => {
+                        return;
+                    }
+                }
+            },
+            Ok(reaction) = local_recv.recv() => {
+
+            }
+        }
+        match foreign_recv.recv().await {
+            Ok(cmd) => {
+                match cmd {
+                    Reaction::Interact(interaction) => {
+                        current.set_interaction(Some(interaction.clone()));
+                        interaction.call(&mut matter);
+                        current.set_interaction(None);
+                    },
+                    Reaction::Nuke => {
+                        return;
+                    }
+                }
+            },
+            Err(_) => return,
+        }
+    }
+}
+
 impl<Matter: Send + 'static> Reactor<Matter> {
-    pub fn new<F: (FnOnce(&Self) -> Matter) + Send>(init_matter: F) -> Self {
-        let (sender, recv) = unbounded::<Reaction<Matter>>();
+    pub fn new<F: (FnOnce(&Self) -> Matter) + Send + 'static>(init_matter: F) -> Self {
+        let (sender, foreign_recv) = unbounded::<Reaction<Matter>>();
         
         let current = Current::<Matter>::new();
 
@@ -108,26 +155,10 @@ impl<Matter: Send + 'static> Reactor<Matter> {
             join: None
         };
 
-        reactor.join = Some(Arc::new(RwLock::new(tokio::spawn(async move {
-            let mut matter = init_matter(&reactor);
+        let reac2 = reactor.clone();
 
-            loop {
-                match recv.recv().await {
-                    Ok(cmd) => {
-                        match cmd {
-                            Reaction::Interact(interaction) => {
-                                current.set_interaction(Some(interaction.clone()));
-                                interaction.call(&mut matter);
-                                current.set_interaction(None);
-                            },
-                            Reaction::Nuke => {
-                                return;
-                            }
-                        }
-                    },
-                    Err(_) => return,
-                }
-            }
+        reactor.join = Some(Arc::new(RwLock::new(tokio::spawn(async move {
+            loop_reactor(init_matter, foreign_recv, reac2).await;
         }))));
         
         return reactor;
@@ -165,11 +196,11 @@ impl<Matter: Send + 'static> Reactor<Matter> {
     }
     
     /// Creates a wave, a computed reactive value.
-    pub fn wave<D, F: Fn(&Matter) -> D>(&self, init: D, f: F) -> Wave<D> {
+    pub fn wave<D: 'static, F: Fn(&Matter) -> D>(&self, init: D, f: F) -> Wave<D> {
         let wave_src = WaveSource::new(init, self.new_tracker());
-        
-
-        return wave_src.to_wave();
+        let wave = wave_src.to_wave();
+        let interaction = wave_src.to_wave();
+        return wave;
     }
 
     /// Creates an atom, a reactive value.

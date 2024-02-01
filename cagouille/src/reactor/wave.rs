@@ -1,7 +1,7 @@
 use std::{pin::Pin, rc::Rc, sync::Arc};
 
 
-use super::{tracker::Tracker, Interaction};
+use super::{interaction::LocalInteraction, tracker::Tracker, Interaction};
 
 pub struct WaveSource<Matter, D> {
     pub(super) value: Pin<Arc<D>>,
@@ -9,14 +9,14 @@ pub struct WaveSource<Matter, D> {
 }
 
 impl<Matter, D> WaveSource<Matter, D> 
-where Matter: Send + 'static
+where Matter: Send + 'static, D: 'static
 {
     pub fn to_wave(&self) -> Wave<D> {
         Wave(self.value.clone())
     }
 
-    pub fn into_interaction<F: (Fn(&Matter) -> D) + Send + Sync + 'static>(self, f: F) -> Interaction<Matter> {
-        Interaction::new(move |matter| {
+    pub fn into_interaction<F: (Fn(&Matter) -> D) + Send + Sync + 'static>(self, f: F) -> LocalInteraction<Matter> {
+        LocalInteraction::new(move |matter| {
             let new_value  = f(matter);
             
             let const_ptr = self.value.as_ref().get_ref() as *const D;
