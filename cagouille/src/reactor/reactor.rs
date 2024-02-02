@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::ops::DerefMut;
 use std::pin::Pin;
@@ -6,7 +7,7 @@ use std::sync::Arc;
 use async_std::channel::{unbounded, Receiver, Sender};
 use async_std::sync::RwLock;
 use std::future::Future;
-use tokio::task::{JoinError, JoinHandle};
+use tokio::task::{JoinError, JoinHandle, LocalSet};
 
 use super::wave::WaveSource;
 use super::{Atom, Wave};
@@ -101,46 +102,33 @@ impl<Matter> Clone for Reactor<Matter> {
     }
 }
 
-pub async fn loop_reactor<Matter, F: (FnOnce(&Reactor<Matter>) -> Matter) + Send + 'static>(init_matter: F, foreign_recv: Receiver<Reaction<Matter>>, reactor: Reactor<Matter>) {
+async fn loop_reactor<Matter, F>(init_matter: F, foreign_recv: Receiver<Reaction<Matter>>, reactor: Reactor<Matter>)
+where Matter: 'static, F: (FnOnce(&Reactor<Matter>) -> Matter) + Send + 'static
+{
     let current = reactor.current.clone();
     let mut matter = init_matter(&reactor);
 
-    let (local_sender, local_recv) = unbounded::<LocalReaction<Matter>>();
-    
     loop {
-        tokio::select! {
-            Ok(reaction) = foreign_recv.recv() => {
-                match reaction {
-                    Reaction::Interact(interaction) => {
-                        current.set_interaction(Some(interaction.clone()));
-                        interaction.call(&mut matter);
-                        current.set_interaction(None);
-                    },
-                    Reaction::Nuke => {
-                        return;
-                    }
-                }
-            },
-            Ok(reaction) = local_recv.recv() => {
 
+        let reaction = foreign_recv.recv().await;
+        {
+            let mut local: VecDeque<LocalReaction<Matter>> = VecDeque::new();
+
+            match reaction {
+                Ok(Reaction::Interact(interaction)) => {
+                    current.set_interaction(Some(interaction.clone()));
+                    interaction.call(&mut matter);
+                    current.set_interaction(None);
+                },
+                Ok(Reaction::Nuke) => {
+                    break;
+                },
+                _ => {}
             }
         }
-        match foreign_recv.recv().await {
-            Ok(cmd) => {
-                match cmd {
-                    Reaction::Interact(interaction) => {
-                        current.set_interaction(Some(interaction.clone()));
-                        interaction.call(&mut matter);
-                        current.set_interaction(None);
-                    },
-                    Reaction::Nuke => {
-                        return;
-                    }
-                }
-            },
-            Err(_) => return,
-        }
+
     }
+
 }
 
 impl<Matter: Send + 'static> Reactor<Matter> {
@@ -156,10 +144,8 @@ impl<Matter: Send + 'static> Reactor<Matter> {
         };
 
         let reac2 = reactor.clone();
-
-        reactor.join = Some(Arc::new(RwLock::new(tokio::spawn(async move {
-            loop_reactor(init_matter, foreign_recv, reac2).await;
-        }))));
+        
+        tokio::spawn(loop_reactor(init_matter, foreign_recv, reac2));
         
         return reactor;
     }
