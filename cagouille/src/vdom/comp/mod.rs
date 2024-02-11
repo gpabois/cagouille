@@ -3,7 +3,7 @@ use std::any::TypeId;
 use futures::{future::LocalBoxFuture, AsyncWrite};
 use crate::component::{traits::Component, State};
 
-use super::{mode::Mode, node_key::VNodeKey, traits::RenderToStream, SharedVNode};
+use super::{mode::Mode, node_key::VNodeKey, traits::RenderToStream, VNode};
 
 pub mod driver;
 pub mod concrete;
@@ -11,9 +11,10 @@ pub mod df;
 
 pub use concrete::ComponentNode;
 
+/// Node component 
 pub struct AnyComponentNode<M: Mode> {
     /// The root node of the component, shared with the impl.
-    v_node: SharedVNode<M>,
+    v_node: Option<VNode<M>>,
 
     /// Drive the component node impl.
     driver: Box<dyn driver::ComponentNodeDriver<M>>

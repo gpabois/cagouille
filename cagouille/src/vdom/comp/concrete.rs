@@ -11,7 +11,6 @@ use crate::df::traits::Differentiable;
 use crate::vdom::VNode;
 use crate::vdom::Mode;
 use crate::vdom::Scope;
-use crate::vdom::SharedVNode;
 use crate::vdom::VNodeKey;
 use crate::vdom::traits::Renderable;
 
@@ -22,7 +21,6 @@ use super::AnyComponentNode;
 
 pub struct ComponentNode<M, Comp: Component<M>> where Comp: Component<M>, M: Mode {
     pub key: VNodeKey,
-    pub v_node: SharedVNode<M>,
     pub state: State<M, Comp>
  }
 
@@ -31,7 +29,6 @@ impl<M, Comp> Default for ComponentNode<M, Comp> where Comp: Component<M>, M: Mo
         Self {
             key: VNodeKey::default(),
             state: Default::default(),
-            v_node: Default::default()
         }
     }
 }
@@ -40,10 +37,10 @@ impl<M, Comp> ComponentNode<M, Comp> where Comp: Component<M> + 'static, M: Mode
     pub fn new(parent: &Scope, props: Comp::Properties, events: Comp::Events) -> Self {
         let scope = parent.new_child_scope();
         let node_key = scope.id.clone();
+        
         Self {
             key: node_key,
             state: State::new(scope, props, events),
-            v_node: Default::default()
         }
     }
 }
@@ -79,7 +76,8 @@ impl<M, Comp> ComponentNodeDriver<M> for ComponentNode<M, Comp> where Comp: Comp
         TypeId::of::<Comp>()
     }
 
-    fn df<'a, 'fut>(&'a self, other: &'a AnyComponentNode<M>) -> LocalBoxFuture<'fut, super::df::AnyComponentDf> where 'a: 'fut {
+    fn df<'a, 'fut>(&'a self, other: &'a AnyComponentNode<M>) -> LocalBoxFuture<'fut, super::df::AnyComponentDf> 
+    where 'a: 'fut {
         Box::pin(async {
             let maybe_other_s = other.state::<Comp>();
         

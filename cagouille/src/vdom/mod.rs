@@ -6,7 +6,6 @@ use crate::component::traits::Component;
 use self::{traits::RenderToStream, el::ElementNode, comp::ComponentNode, mode::Mode};
 use async_std::sync::RwLock;
 use futures::{io::AsyncWriteExt, future::{LocalBoxFuture, join_all}, AsyncWrite};
-use seeded_random::{Seed, Random};
 
 pub mod mode;
 pub mod df;

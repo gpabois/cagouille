@@ -1,3 +1,3 @@
 [workspace]
-members=["cagouille", "cagouille-macro"]
+members=["cagouille", "cagouille-macro", "reactor"]
 resolver = "2"
