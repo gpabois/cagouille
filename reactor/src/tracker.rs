@@ -1,22 +1,22 @@
-use std::sync::RwLock;
-use std::ops::{Deref, DerefMut};
 use crate::{interaction::BoundInteraction, interface::Slot};
+use std::ops::{Deref, DerefMut};
+use std::sync::RwLock;
 
 /// Track dependencies
-pub struct Tracker<Matter>{   
-    slot: Slot<Matter>,
-    interactions: RwLock<Vec<BoundInteraction<Matter>>>
+pub(crate) struct Tracker {
+    slot: Slot,
+    interactions: RwLock<Vec<BoundInteraction>>,
 }
 
-impl<Matter> Tracker<Matter> {
+impl Tracker {
     /// Create a new tracker
-    pub fn new(slot: Slot<Matter>) -> Self {
-        Self{
+    pub(crate) fn new(slot: Slot) -> Self {
+        Self {
             slot,
-            interactions: RwLock::new(Vec::default())
+            interactions: RwLock::new(Vec::default()),
         }
     }
- 
+
     /// Track the current interaction and add it as a dep.
     pub fn track(&self) {
         if let Some(bint) = self.slot.current_interaction() {
@@ -25,9 +25,14 @@ impl<Matter> Tracker<Matter> {
             ints.deref_mut().dedup();
         }
     }
-   
+
     /// Trigger all interactions.
     pub fn trigger(&self) {
-        self.interactions.read().unwrap().deref().iter().for_each(BoundInteraction::schedule);
+        self.interactions
+            .read()
+            .unwrap()
+            .deref()
+            .iter()
+            .for_each(BoundInteraction::schedule);
     }
 }

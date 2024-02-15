@@ -1,58 +1,46 @@
+use crate::{interaction::BoundInteraction, reaction::AnyReaction};
 use std::ops::Deref;
 use tokio::sync::{mpsc, watch};
-use crate::{interaction::BoundInteraction, reaction::Reaction};
 
-/// Signal to send info to the reactor
-pub struct Signal<Matter> {
-    reactions: mpsc::UnboundedSender<Reaction<Matter>>
+#[derive(Clone)]
+/// Type-erased signal
+pub(crate) struct Signal {
+    reactions: mpsc::UnboundedSender<AnyReaction>,
 }
 
-impl<Matter> Signal<Matter> {
-    pub fn new(reactions: mpsc::UnboundedSender<Reaction<Matter>>) -> Self {
-        Self{reactions}
+impl Signal {
+    pub fn new(reactions: mpsc::UnboundedSender<AnyReaction>) -> Self {
+        Self { reactions }
     }
 }
 
-impl<Matter> PartialEq for Signal<Matter> {
+impl PartialEq for Signal {
     fn eq(&self, other: &Self) -> bool {
         self.reactions.same_channel(&other.reactions)
     }
 }
 
-impl<Matter> Clone for Signal<Matter> {
-    fn clone(&self) -> Self {
-        Self { reactions: self.reactions.clone() }
-    }
-}
-
-impl<Matter> Signal<Matter> {
+impl Signal {
     /// Send a reaction to the reactor
-    pub fn send<I: Into<Reaction<Matter>>>(&self, into_reaction: I) {
-        self.reactions.send(into_reaction.into()).unwrap();       
+    pub fn send<I: Into<AnyReaction>>(&self, into_reaction: I) {
+        self.reactions.send(into_reaction.into()).unwrap();
     }
 }
 
-
+#[derive(Clone)]
 /// Receive info from the reactor
-pub struct Slot<Matter> {
+pub(crate) struct Slot {
     /// Current bound interaction
-    current: watch::Receiver<Option<BoundInteraction<Matter>>>
-    
+    current: watch::Receiver<Option<BoundInteraction>>,
 }
 
-impl<Matter> Clone for Slot<Matter> {
-    fn clone(&self) -> Self {
-        Self { current: self.current.clone() }
-    }
-}
-
-impl<Matter> Slot<Matter> {
-    pub fn new(current: watch::Receiver<Option<BoundInteraction<Matter>>>) -> Self {
-        Self{current}
+impl Slot {
+    pub fn new(current: watch::Receiver<Option<BoundInteraction>>) -> Self {
+        Self { current }
     }
 
     /// Returns the current bound interactions, if any.
-    pub fn current_interaction(&self) -> Option<BoundInteraction<Matter>> {
-      self.current.borrow().deref().clone()  
+    pub fn current_interaction(&self) -> Option<BoundInteraction> {
+        self.current.borrow().deref().clone()
     }
 }

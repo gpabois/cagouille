@@ -1,4 +1,3 @@
-
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
@@ -6,20 +5,21 @@ use crate::interface::Signal;
 
 /// The reactor's core pilot
 pub struct Pilot<Matter> {
+    _pht: std::marker::PhantomData<Matter>,
     /// The reaction  to send to the core
-    signal: Signal<Matter>, 
+    signal: Signal,
     /// The shutdown button
     shutdown: watch::Sender<bool>,
     /// Join handle for the core's loop.
-    join: Option<JoinHandle<()>>
+    join: Option<JoinHandle<()>>,
 }
 
 impl<Matter> Pilot<Matter> {
     /// Get a signal
-    pub fn get_signal(&self) -> Signal<Matter> {
+    pub fn get_signal(&self) -> Signal {
         self.signal.clone()
     }
-    
+
     /// Shutdown the reactor, panics if it has already be shutdown
     pub async fn shutdown(mut self) {
         self.shutdown.send(true).unwrap();
@@ -37,14 +37,17 @@ impl<Matter> Drop for Pilot<Matter> {
         if self.shutdown.is_closed() {
             return;
         }
-        self.shutdown.send(true).unwrap(); 
+        self.shutdown.send(true).unwrap();
     }
 }
 
 impl<Matter> Pilot<Matter> {
-    pub fn new(join: JoinHandle<()>, 
-              signal: Signal<Matter>, 
-               shutdown: watch::Sender<bool>) -> Self {
-        Self{join: Some(join), signal, shutdown}
+    pub fn new(join: JoinHandle<()>, signal: Signal, shutdown: watch::Sender<bool>) -> Self {
+        Self {
+            _pht: Default::default(),
+            join: Some(join),
+            signal,
+            shutdown,
+        }
     }
 }

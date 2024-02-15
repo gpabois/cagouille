@@ -1,9 +1,12 @@
-use futures::{future::{join_all, LocalBoxFuture, BoxFuture}, Future};
+use futures::{
+    future::{join_all, BoxFuture, LocalBoxFuture},
+    Future,
+};
 use tokio::join;
 
 use crate::component::traits::Component;
 
-use super::{VNode, traits::RenderToStream, comp::ComponentNode};
+use super::{comp::ConcreteComponentNode, traits::RenderToStream, VNode};
 
 /// Mounted within a DOM tree.
 pub struct BrowserMode;
@@ -15,12 +18,20 @@ impl Mode for DebugMode {
     type ComponentNodeState = ();
 
     /// We recursively initialise the whole tree
-    fn on_component_node_initialised<'a, 'fut, Comp>(node: &'a ComponentNode<Self, Comp>) -> LocalBoxFuture<'fut, ()> 
-    where 'a: 'fut, Comp: Component<Self> + 'static
+    fn on_component_node_initialised<'a, 'fut, Comp>(
+        node: &'a ConcreteComponentNode<Self, Comp>,
+    ) -> LocalBoxFuture<'fut, ()>
+    where
+        'a: 'fut,
+        Comp: Component<Self> + 'static,
     {
         Box::pin(async {
-            // Initialise rendering 
-            let v_node = node.state.render().await.expect("cannot render the component");
+            // Initialise rendering
+            let v_node = node
+                .state
+                .render()
+                .await
+                .expect("cannot render the component");
             v_node.initialise().await;
             *node.v_node.0.write().await = Some(v_node);
         })
@@ -28,15 +39,18 @@ impl Mode for DebugMode {
 }
 
 impl DebugMode {
-    pub async fn render_to_string<Comp: Component<Self> + 'static>(props: Comp::Properties, events: Comp::Events) -> String {
+    pub async fn render_to_string<Comp: Component<Self> + 'static>(
+        props: Comp::Properties,
+        events: Comp::Events,
+    ) -> String {
         let root_scope = super::Scope::new_root();
         let root: VNode<_> = VNode::<Self>::component::<Comp>(&root_scope, props, events).into();
         root.initialise().await;
-        root.render_to_string().await.expect("cannot render to string")
+        root.render_to_string()
+            .await
+            .expect("cannot render to string")
     }
 }
-
-
 
 /// SSR rendering.
 pub struct SSRMode;
@@ -46,5 +60,10 @@ pub trait Mode: Sized + 'static {
     type ComponentNodeState: Default;
 
     /// What to do once a component node has been initialised.
-    fn on_component_node_initialised<'a, 'fut, Comp>(comp: &'a ComponentNode<Self, Comp>) -> LocalBoxFuture<'fut, ()> where 'a: 'fut, Comp: Component<Self> + 'static;
+    fn on_component_node_initialised<'a, 'fut, Comp>(
+        comp: &'a ConcreteComponentNode<Self, Comp>,
+    ) -> LocalBoxFuture<'fut, ()>
+    where
+        'a: 'fut,
+        Comp: Component<Self> + 'static;
 }

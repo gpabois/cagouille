@@ -1,24 +1,31 @@
 use std::ops::Deref;
 
-use tokio::sync::watch;
 use crate::{interface::Signal, Context, Interaction};
+use tokio::sync::watch;
 
 /// A measure from the reactor
-/// This allows for external systems to receive updated 
+/// This allows for external systems to receive updated
 /// upon reactor's state change
-pub struct Measure<D>(watch::Receiver<D>) where D: Sync + Send + 'static;
+pub struct Measure<D>(watch::Receiver<D>)
+where
+    D: Sync + Send + 'static;
 
-impl<D> Measure<D> where D: Sync + Send + 'static {
+impl<D> Measure<D>
+where
+    D: Sync + Send + 'static,
+{
     /// Create a new measure.
-   pub fn new<Matter, F>(init: D, f: F, signal: Signal<Matter>) -> Self 
-   where F: Fn(Context<Matter>) -> D  + Sync + Send + 'static
-   {
+    pub(crate) fn new<Matter, F>(init: D, f: F, signal: Signal) -> Self
+    where
+        F: Fn(Context<Matter>) -> D + Sync + Send + 'static,
+        Matter: 'static,
+    {
         let (sender, recver) = watch::channel(init);
-    
+
         signal.send(Interaction::new(move |ctx| {
             sender.send(f(ctx)).unwrap();
         }));
-        
+
         Self(recver)
     }
 
@@ -31,10 +38,13 @@ impl<D> Measure<D> where D: Sync + Send + 'static {
     }
 }
 
-impl<D> Measure<D> where D: Sync + Send + ToOwned<Owned=D> + 'static {
+impl<D> Measure<D>
+where
+    D: Sync + Send + ToOwned<Owned = D> + 'static,
+{
     pub fn to_owned(&self) -> D {
         self.borrow().deref().to_owned()
-    }    
+    }
 }
 
 pub struct Ref<'a, D>(watch::Ref<'a, D>);
@@ -46,4 +56,3 @@ impl<'a, D> Deref for Ref<'a, D> {
         self.0.deref()
     }
 }
-

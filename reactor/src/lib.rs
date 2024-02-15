@@ -1,3 +1,5 @@
+#![feature(box_into_inner)]
+
 mod action;
 mod r#async;
 mod atom;
@@ -15,18 +17,20 @@ pub use atom::Atom;
 pub use context::Context;
 pub use context::InitContext;
 pub use interaction::Interaction;
+pub use measure::Measure;
 use r#async::BoxFuture;
 pub use ray::Ray;
 
-use measure::Measure;
 use pilot::Pilot;
 use reaction::Reaction;
 
-pub struct Reactor<Matter>(Pilot<Matter>);
+pub struct Reactor<Matter>(Pilot<Matter>)
+where
+    Matter: Sync + Send + 'static;
 
 impl<Matter> Reactor<Matter>
 where
-    Matter: Send + 'static,
+    Matter: Sync + Send + 'static,
 {
     pub fn new<F>(init: F) -> Self
     where
@@ -80,8 +84,8 @@ mod tests {
     use crate::{Atom, Ray, Reactor};
 
     pub struct Foo {
-        atom: Atom<bool, Self>,
-        ray: Ray<bool, Self>,
+        atom: Atom<bool>,
+        ray: Ray<bool>,
     }
 
     #[tokio::test]

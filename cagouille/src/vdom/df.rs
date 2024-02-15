@@ -1,13 +1,18 @@
-use super::{VNode, mode::Mode, el::ElementNode, comp::AnyComponentNode};
+use super::{comp::ComponentNode, el::ElementNode, mode::Mode, VNode};
 
-impl<M> PartialEq for VNode<M> where M: Mode {
+impl<M> PartialEq for VNode<M>
+where
+    M: Mode,
+{
     fn eq(&self, other: &Self) -> bool {
         self.same(other)
     }
 }
 
-
-impl<M> VNode<M> where M: Mode {
+impl<M> VNode<M>
+where
+    M: Mode,
+{
     /// Check if both vnodes are the same.
     pub fn same(&self, other: &Self) -> bool {
         match (self, other) {
@@ -15,29 +20,31 @@ impl<M> VNode<M> where M: Mode {
             (VNode::Element(el1), VNode::Element(el2)) => el1.same(el2),
             (VNode::Text(s1), VNode::Text(s2)) => s1 == s2,
             (VNode::Empty, VNode::Empty) => true,
-            _ => false
+            _ => false,
         }
     }
 
     /// Patch the virtual node.
-    pub fn patch(&mut self, other: Self) {
-
-    }
+    pub fn patch(&mut self, other: Self) {}
 }
 
-impl<M> AnyComponentNode<M> where M: Mode {
+impl<M> ComponentNode<M>
+where
+    M: Mode,
+{
     pub fn same(&self, other: &Self) -> bool {
         self.type_id() == other.type_id()
     }
 }
 
-impl<M> ElementNode<M> where M: Mode {
+impl<M> ElementNode<M>
+where
+    M: Mode,
+{
     pub fn same(&self, other: &Self) -> bool {
-        return self.tag != other.tag
+        return self.tag != other.tag;
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -47,7 +54,7 @@ mod tests {
     pub fn vnode_text_same_true() {
         let n1 = VNode::<DebugMode>::text("texte 1");
         let n2 = VNode::<DebugMode>::text("texte 1");
-        
+
         assert_eq!(n1, n2);
     }
 
@@ -59,3 +66,4 @@ mod tests {
         assert_ne!(n1, n2);
     }
 }
+
