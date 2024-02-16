@@ -3,34 +3,50 @@ use crate::{
     reaction::{AnyReaction, Reaction},
     Context,
 };
-use std::{any::Any, sync::Arc};
 
-#[derive(Clone)]
-/// Interaction bound to a reactor
-pub(crate) struct BoundInteraction {
-    /// The interaction
+use std::{any::Any, sync::{Arc, RwLock}};
+
+struct BoundInteractionInner {
     interaction: AnyInteraction,
-    /// Signal to send the interaction
     signal: Signal,
+    /// The bound interaction is scheduled to be executed
+    scheduled: RwLock<bool>
 }
 
-impl PartialEq for BoundInteraction {
+impl PartialEq for BoundInteractionInner {
     fn eq(&self, other: &Self) -> bool {
         self.interaction == other.interaction && self.signal == other.signal
     }
 }
 
+#[derive(Clone, PartialEq)]
+/// Interaction bound to a reactor
+pub(crate) struct BoundInteraction(Arc<BoundInteractionInner>);
+
 impl BoundInteraction {
     ///
     pub fn new(interaction: AnyInteraction, signal: Signal) -> Self {
-        Self {
+        Self(Arc::new(BoundInteractionInner {
             interaction,
             signal,
-        }
+            scheduled: RwLock::new(false)
+        }))
     }
+
     /// Send interaction to the reactor
     pub fn schedule(&self) {
-        self.signal.send(self.interaction.clone());
+        if *self.0.scheduled.read().unwrap() == false {
+            *self.0.scheduled.write().unwrap() = true;
+            self.0.signal.send(self.clone());
+        }
+    }
+
+    pub fn ack(&self) {
+        *self.0.scheduled.write().unwrap() = false;
+    }
+
+    pub fn downcast<Matter>(&self) -> Option<Interaction<Matter>> where Matter: 'static {
+        self.0.interaction.clone().downcast()
     }
 }
 

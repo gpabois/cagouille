@@ -1,13 +1,12 @@
 use reactor::Reactor;
 
-use crate::vdom::{mode::Mode, VNode};
+use crate::vdom::VNode;
 
-use super::traits::Component;
+use super::{context::InitContext, traits::Component};
 
-pub struct Matter<M, C>
+pub struct Matter<C>
 where
-    C: Component<M>,
-    M: Mode,
+    C: Component
 {
     data: C::Data,
     events: C::Events,
@@ -15,19 +14,17 @@ where
 }
 
 /// State of a component.
-pub struct State<M, C>
+pub struct State<C>
 where
-    C: Component<M>,
-    M: Mode,
+    C: Component,
 {
-    reactor: Reactor<Matter<M, C>>,
-    vnode: reactor::Measure<VNode<M>>,
+    reactor: Reactor<Matter<C>>,
+    vnode: reactor::Measure<VNode>,
 }
 
-impl<M, C> State<M, C>
+impl<C> State<C>
 where
-    C: Component<M>,
-    M: Mode,
+    C: Component,
 {
     pub fn new(props: C::Properties, events: C::Events) -> Self {
         let mut reactor = Reactor::new(move |ctx| Self::initialise(props, events, ctx));
@@ -42,8 +39,8 @@ where
     fn initialise(
         props: C::Properties,
         events: C::Events,
-        ctx: reactor::InitContext<Matter<M, C>>,
-    ) -> Matter<M, C> {
+        ctx: reactor::InitContext<Matter<C>>,
+    ) -> Matter<C> {
         let data = {
             let ctx = InitContext {
                 props: &props,

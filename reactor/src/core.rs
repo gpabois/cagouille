@@ -94,6 +94,15 @@ where
     /// Process the reaction
     async fn process_reaction(&mut self, reaction: Reaction<Matter>) {
         match reaction {
+            Reaction::BoundInteract(bound) => {
+                if let Some(interaction) = bound.downcast::<Matter>() {
+                    let ctx = Context::new(&mut self.matter);
+                    self.current_interaction.send(Some(bound.clone())).unwrap();
+                    interaction.execute(ctx);
+                    self.current_interaction.send(None).unwrap();
+                    bound.ack();
+                }
+            },
             Reaction::Interact(interaction) => {
                 let ctx = Context::new(&mut self.matter);
                 let bnd = BoundInteraction::new(interaction.clone().into(), self.signal.clone());

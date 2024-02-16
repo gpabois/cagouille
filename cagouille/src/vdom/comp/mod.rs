@@ -1,30 +1,30 @@
-use crate::component::{traits::Component, State};
+use crate::component::traits::Component;
 use futures::{future::LocalBoxFuture, AsyncWrite};
 use std::any::TypeId;
 
-use super::{mode::Mode, node_key::VNodeKey, traits::RenderToStream};
+use super::traits::RenderToStream;
 
 pub mod concrete;
-pub mod df;
+// pub mod df;
 pub mod driver;
 
 pub use concrete::ConcreteComponentNode;
 
-type Driver<M> = dyn driver::CompDriver<M> + Send + Sync;
+type Driver = dyn driver::CompDriver + Send + Sync;
 
 /// Node component
-pub struct ComponentNode<M: Mode> {
+pub struct ComponentNode {
     /// Drive the component node impl.
-    driver: Box<Driver<M>>,
+    driver: Box<Driver>,
 }
 
-impl<M: Mode> ComponentNode<M> {
+impl ComponentNode {
     pub fn new<Comp>(props: Comp::Properties, events: Comp::Events) -> Self
     where
-        Comp: Component<M> + 'static,
+        Comp: Component + 'static,
     {
         Self {
-            driver: Box::new(ConcreteComponentNode::<M, Comp>::new(props, events)),
+            driver: Box::new(ConcreteComponentNode::<Comp>::new(props, events)),
         }
     }
 
@@ -42,10 +42,7 @@ impl<M: Mode> ComponentNode<M> {
     }
 }
 
-impl<'a, M> RenderToStream<'a> for &'a ComponentNode<M>
-where
-    M: Mode,
-{
+impl<'a> RenderToStream<'a> for &'a ComponentNode {
     fn render_to_stream<'stream, 'fut, W: AsyncWrite + futures::AsyncWriteExt + Unpin>(
         self,
         stream: &'stream mut W,

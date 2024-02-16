@@ -2,7 +2,6 @@ use std::any::Any;
 
 use futures::future::LocalBoxFuture;
 
-use crate::component::state::StateDf;
 use crate::component::traits::Component;
 use crate::df::traits::{AsyncDifferentiable, Differentiable};
 use crate::vdom::Mode;
@@ -21,20 +20,21 @@ pub enum AnyComponentDf {
 pub struct AnyComponentStateDf(pub(super) Box<dyn Any>);
 
 impl AnyComponentStateDf {
-    fn downcast<Comp: Component<M> + 'static, M: Mode>(self) -> Option<StateDf<M, Comp>>
+    fn downcast<Comp>(self) -> Option<StateDf<Comp>>
     where
+        Comp: Component + 'static,
         Comp::Properties: Differentiable,
     {
-        self.0.downcast::<StateDf<M, Comp>>().ok().map(|b| *b)
+        self.0.downcast::<StateDf<Comp>>().ok().map(|b| *b)
     }
 }
 
-impl<M: Mode> AsyncDifferentiable for ComponentNode<M> {
+impl<M: Mode> AsyncDifferentiable for ComponentNode {
     type Df = AnyComponentDf;
 
     fn df<'a, 'fut>(
-        src: &'a ComponentNode<M>,
-        dest: &'a ComponentNode<M>,
+        src: &'a ComponentNode,
+        dest: &'a ComponentNode,
     ) -> LocalBoxFuture<'fut, AnyComponentDf>
     where
         'a: 'fut,

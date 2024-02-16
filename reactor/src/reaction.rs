@@ -1,11 +1,14 @@
+use std::ops::Bound;
+
 use crate::{
     action::{Action, AnyAction},
-    interaction::AnyInteraction,
+    interaction::{AnyInteraction, BoundInteraction},
     Context, Interaction,
 };
 
 ///  A reactor's command
-pub enum Reaction<Matter> {
+pub(crate) enum Reaction<Matter> {
+    BoundInteract(BoundInteraction),
     Interact(Interaction<Matter>),
     Act(Action<Matter>),
 }
@@ -26,7 +29,8 @@ where
     }
 }
 
-pub enum AnyReaction {
+pub(crate) enum AnyReaction {
+    BoundInteract(BoundInteraction),
     Interact(AnyInteraction),
     Act(AnyAction),
 }
@@ -37,6 +41,7 @@ impl AnyReaction {
         Matter: Send + Sync + 'static,
     {
         match self {
+            AnyReaction::BoundInteract(any) => Some(Reaction::BoundInteract(any)),
             AnyReaction::Interact(any) => any
                 .downcast::<Matter>()
                 .map(|interaction| interaction.into()),
@@ -51,8 +56,15 @@ where
 {
     fn from(value: Reaction<Matter>) -> Self {
         match value {
+            Reaction::BoundInteract(bound_interaction) => Self::BoundInteract(bound_interaction),
             Reaction::Interact(interaction) => Self::Interact(interaction.into()),
             Reaction::Act(action) => Self::Act(action.into()),
         }
+    }
+}
+
+impl From<BoundInteraction> for AnyReaction {
+    fn from(value: BoundInteraction) -> Self {
+        Self::BoundInteract(value)
     }
 }

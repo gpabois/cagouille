@@ -1,7 +1,7 @@
-use std::ops::Deref;
+use std::{ops::Deref, time::Duration};
 
 use crate::{interface::Signal, Context, Interaction};
-use tokio::sync::watch;
+use tokio::{sync::watch, time};
 
 /// A measure from the reactor
 /// This allows for external systems to receive updated
@@ -30,7 +30,19 @@ where
     }
 
     pub async fn changed(&mut self) {
-        self.0.changed().await.unwrap()
+        self.0.changed().await.unwrap();
+        self.0.borrow_and_update();
+    }
+
+    pub async fn changed_or_timeout(&mut self, d: Duration) {
+        let sleep = time::sleep(d);
+        tokio::pin!(sleep);
+
+
+        tokio::select! {
+            _ = self.changed() => {},
+            _ = &mut sleep => {}
+        }
     }
 
     pub fn borrow(&self) -> Ref<'_, D> {

@@ -1,5 +1,3 @@
-#![feature(box_into_inner)]
-
 mod action;
 mod r#async;
 mod atom;
@@ -81,23 +79,61 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
     use crate::{Atom, Ray, Reactor};
-
-    pub struct Foo {
-        atom: Atom<bool>,
-        ray: Ray<bool>,
-    }
 
     #[tokio::test]
     /// Test measure, without any reaction.
     pub async fn test_measure_no_reaction() {
+        pub struct Foo {
+            atom: Atom<bool>
+        }
+
         let reactor = Reactor::<Foo>::new(|ctx| Foo {
-            atom: ctx.use_atom(true),
-            ray: ctx.use_ray(true, |ctx| *ctx.atom),
+            atom: ctx.use_atom(true)
         });
         // Create a simple measure of data.
         let measure = reactor.use_stabilised_measure(false, |ctx| *ctx.atom).await;
         assert!(measure.to_owned());
+    }
+
+    #[tokio::test]
+    pub async fn test_no_multiple_interaction_trigger() {
+        pub struct Foo {
+            a0: Atom<bool>,
+            a1: Atom<bool>,
+            a2: Atom<u8>,
+            r0: Ray<bool>,
+        }
+
+        let reactor = Reactor::<Foo>::new(|ctx| Foo {
+            a0: ctx.use_atom(false),
+            a1: ctx.use_atom(false),
+            a2: ctx.use_atom(0),
+            r0: ctx.use_ray(true, |mut ctx| {
+                *ctx.a2 += 1;
+                *ctx.a0 && *ctx.a1
+            }),
+        });
+
+        // Create a simple measure of data.
+        let mut m0 = reactor.use_stabilised_measure(false, |ctx| ctx.r0.to_owned()).await;
+        let mut m1 = reactor.use_stabilised_measure(0, |ctx| ctx.a2.to_owned()).await;
+
+        // Modify two deps, it should call ray's function only once.
+        reactor.act(|mut ctx| {
+            *ctx.a0 = true;
+            *ctx.a1 = true;
+        });
+
+        m0.changed().await;
+        m1.changed().await;
+
+        // Should not have changed again.
+        m1.changed_or_timeout(Duration::from_millis(100)).await;
+
+        assert!(m0.to_owned());
+        assert!(m1.to_owned() == 2);
     }
 
     #[tokio::test]
@@ -107,6 +143,11 @@ mod tests {
     /// The atom's value is modified through an action, it should reflect onto the ray's value.
     /// A measure is used to retrieve the ray's value.
     pub async fn test_ray() {
+        pub struct Foo {
+            atom: Atom<bool>,
+            ray: Ray<bool>,
+        }
+
         let reactor = Reactor::<Foo>::new(|ctx| Foo {
             atom: ctx.use_atom(true),
             ray: ctx.use_ray(true, |ctx| !*ctx.atom),

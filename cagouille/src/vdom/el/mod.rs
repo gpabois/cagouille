@@ -1,18 +1,18 @@
 use futures::{AsyncWriteExt, AsyncWrite, future::LocalBoxFuture};
 use self::attr::ElementAttributes;
 
-use super::{attr::AttributeValue, VNode, traits::RenderToStream, Scope, mode::Mode, node_key::VNodeKey};
+use super::{attr::AttributeValue, VNode, traits::RenderToStream, Scope, node_key::VNodeKey};
 
 pub mod attr;
 pub mod df;
 pub mod event;
 
 /// Virtual HTML element
-pub struct ElementNode<M> where M: Mode {
+pub struct ElementNode {
     pub(super) scope:      Scope,
     pub(super) tag:        String,
     pub(super) attributes: ElementAttributes,
-    pub(super) children:   Vec<VNode<M>>
+    pub(super) children:   Vec<VNode>
 }
 
 impl<M> Default for ElementNode<M> where M: Mode {

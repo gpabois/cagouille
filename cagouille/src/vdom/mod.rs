@@ -75,33 +75,16 @@ pub mod traits {
     }
 }
 
-/// A sharable, and mutable reference to a node.
-pub(self) struct SharedVNode<M: Mode>(pub(super) Arc<RwLock<Option<VNode<M>>>>);
-
-impl<M: Mode> Clone for SharedVNode<M> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<M: Mode> Default for SharedVNode<M> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-pub struct MaybeVNodeRef<'a, M>(Option<&'a VNode<M>>)
-where
-    M: Mode;
-
-pub enum VNode<M>
-where
-    M: Mode,
-{
-    Component(comp::ComponentNode<M>),
-    Element(el::ElementNode<M>),
+enum VNodeData {
+    Component(comp::ComponentNode),
+    Element(el::ElementNode),
     Text(String),
-    Empty,
+    Empty
+}
+pub struct VNode
+{
+    data: VNodeData,
+    key: VNodeKey
 }
 
 impl<M> Debug for VNode<M>
@@ -203,161 +186,5 @@ where
 
             Ok(())
         })
-    }
-}
-
-#[cfg(test)]
-pub mod tests {
-    use crate::prelude::Self_Differentiable;
-    use futures::future::LocalBoxFuture;
-
-    use crate::{
-        component::{ctx::Context, traits::Component},
-        event::{
-            traits::{Event, EventSignal},
-            EventSlot,
-        },
-        vdom::mode::DebugMode,
-    };
-
-    use super::{mode::Mode, VNode};
-
-    pub struct BarData {
-        attr: String,
-    }
-
-    #[derive(Default, Self_Differentiable)]
-    pub struct BarProps {
-        attr: String,
-    }
-
-    pub struct BarChanged;
-    impl Event for BarChanged {
-        type Payload = usize;
-    }
-
-    #[derive(Default)]
-    pub struct BarEvents<'a> {
-        changed: Option<EventSlot<'a, BarChanged>>,
-    }
-
-    impl<'a> EventSignal<'a, BarChanged> for BarEvents<'a> {
-        fn connect(&mut self, slot: EventSlot<'a, BarChanged>) {
-            self.changed = Some(slot)
-        }
-
-        fn emit(&self, payload: <BarChanged as Event>::Payload) {
-            if let Some(slot) = &self.changed {
-                slot.received(payload)
-            }
-        }
-    }
-
-    pub struct Bar<'a> {
-        _marker: std::marker::PhantomData<&'a ()>,
-    }
-
-    impl<'a, M> Component<M> for Bar<'a>
-    where
-        M: Mode,
-    {
-        type Properties = BarProps;
-        type Data = BarData;
-        type Events = BarEvents<'a>;
-
-        fn data<'props, 'fut>(props: &'props Self::Properties) -> LocalBoxFuture<'fut, Self::Data>
-        where
-            'props: 'fut,
-        {
-            Box::pin(std::future::ready(Self::Data {
-                attr: props.attr.clone(),
-            }))
-        }
-
-        fn render<'s, 'fut>(
-            ctx: Context<'s, M, Self>,
-        ) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>>
-        where
-            's: 'fut,
-        {
-            Box::pin(async move {
-                VNode::element(&ctx.scope, "div")
-                    .append_child(VNode::text(&ctx.data.attr))
-                    .consume()
-                    .into()
-            })
-        }
-
-        fn initialised<'ctx, 'fut>(
-            ctx: crate::component::ctx::MutContext<'ctx, M, Self>,
-        ) -> LocalBoxFuture<'fut, ()>
-        where
-            'ctx: 'fut,
-        {
-            Box::pin(async {})
-        }
-    }
-
-    pub struct FooData {}
-
-    #[derive(Default, Self_Differentiable)]
-    pub struct FooProps {}
-    pub struct Foo;
-
-    impl<M> Component<M> for Foo
-    where
-        M: Mode,
-    {
-        type Properties = FooProps;
-        type Data = FooData;
-        type Events = ();
-
-        fn data<'props, 'fut>(props: &'props Self::Properties) -> LocalBoxFuture<'fut, Self::Data>
-        where
-            'props: 'fut,
-        {
-            Box::pin(std::future::ready(Self::Data {}))
-        }
-
-        fn render<'s, 'fut>(
-            ctx: Context<'s, M, Self>,
-        ) -> LocalBoxFuture<'fut, Result<super::VNode<M>, crate::error::Error>>
-        where
-            's: 'fut,
-        {
-            Box::pin(async move {
-                VNode::element(&ctx.scope, "div")
-                    .extend_child((0..10_000).map(|_| {
-                        VNode::component::<Bar>(
-                            &ctx.scope,
-                            BarProps {
-                                attr: "Hello world".into(),
-                                ..Default::default()
-                            },
-                            BarEvents {
-                                ..Default::default()
-                            },
-                        )
-                        .into()
-                    }))
-                    .consume()
-                    .into()
-            })
-        }
-
-        fn initialised<'ctx, 'fut>(
-            ctx: crate::component::ctx::MutContext<'ctx, M, Self>,
-        ) -> LocalBoxFuture<'fut, ()>
-        where
-            'ctx: 'fut,
-        {
-            todo!()
-        }
-    }
-
-    #[tokio::test]
-    pub async fn test_foo_root() {
-        let tree = DebugMode::render_to_string::<Foo>(FooProps {}, ()).await;
-        println!("{}", tree)
     }
 }

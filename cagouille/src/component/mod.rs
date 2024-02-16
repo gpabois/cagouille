@@ -1,22 +1,18 @@
 mod context;
 mod state;
 
+pub use state::State;
+
 pub mod traits {
-
-    use futures::future::LocalBoxFuture;
-
     use crate::{
         df::traits::Differentiable,
         error::Error,
-        vdom::{mode::Mode, VNode},
+        vdom:: VNode,
     };
 
     use super::context::{Context, InitContext};
 
-    pub trait Component<M>: Sized
-    where
-        M: Mode,
-    {
+    pub trait Component: Sized {
         /// Properties of the component
         type Properties: Send + Sync + Default + Differentiable;
 
@@ -27,9 +23,9 @@ pub mod traits {
         type Data: Send + Sync;
 
         /// Initialise component state
-        fn initialise<'props, 'fut>(ctx: InitContext<M, Self>) -> Self::Data;
+        fn initialise<'props, 'fut>(ctx: InitContext<Self>) -> Self::Data;
 
         /// Render the component.
-        fn render<'ctx>(ctx: Context<'ctx, M, Self>) -> Result<VNode<M>, Error>;
+        fn render<'ctx>(ctx: Context<'ctx, Self>) -> Result<VNode, Error>;
     }
 }
