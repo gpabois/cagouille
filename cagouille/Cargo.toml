@@ -11,7 +11,7 @@ futures-locks = "0.7.1"
 cagouille-macro = {path = "../cagouille-macro"}
 wasm-bindgen = "0.2.90"
 tokio = { version = "1.35.1", features = ["rt", "macros"] }
-web-sys = { version = "0.3.68", features = ["HtmlElement", "Window", "Document", "Text"] }
+web-sys = { version = "0.3.68", features = ["HtmlElement", "Window", "Document", "Text", "Event", "MouseEvent", "FocusEvent", "AnimationPlaybackEvent"] }
 seeded-random = "0.6.0"
 async-std = "1.12.0"
 either = "1.9.0"

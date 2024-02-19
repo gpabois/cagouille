@@ -22,12 +22,15 @@ impl<D> MeasureInner<D> {
         self.counter.fetch_add(1, Ordering::SeqCst);
     }
 
-    pub async fn changed(&self) {
-        let curr = self.counter.load(Ordering::SeqCst);
+    /// Wait until the current version is not the same as the given initial version
+    pub async fn changed(&self, version: usize) -> usize {
         loop {
-            if self.counter.load(Ordering::SeqCst) != curr {
-                break;
+            let curr = self.counter.load(Ordering::SeqCst);
+
+            if curr != version {
+                return curr;
             }
+
             tokio::task::yield_now().await;
         }
     }
@@ -46,16 +49,23 @@ where
 /// A measure from the reactor
 /// This allows for external systems to receive updated
 /// upon reactor's state change
-pub struct Measure<D>(Arc<MeasureInner<D>>)
-where
-    D: Sync + Send + 'static;
+pub struct Measure<D> where
+D: Sync + Send + 'static
+{
+    inner: Arc<MeasureInner<D>>,
+    version: usize
+}
+
 
 impl<D> Clone for Measure<D>
 where
     D: Sync + Send + 'static,
 {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self {
+            version: self.version,
+            inner: self.inner.clone()
+        }
     }
 }
 
@@ -80,11 +90,11 @@ where
             in1.update(f(ctx));
         }));
 
-        Self(inner)
+        Self{inner, version: 0}
     }
 
     pub async fn changed(&mut self) {
-        self.0.changed().await;
+        self.version = self.inner.changed(self.version).await;
     }
 
     pub async fn changed_or_timeout(&mut self, d: Duration) {
@@ -103,7 +113,7 @@ where
     D: Sync + Send + Default + 'static,
 {
     pub fn take(&self) -> D {
-        self.0.take()
+        self.inner.take()
     }
 }
 
@@ -112,6 +122,6 @@ where
     D: Sync + Send + ToOwned<Owned = D> + 'static,
 {
     pub fn to_owned(&self) -> D {
-        self.0.value.read().unwrap().deref().to_owned()
+        self.inner.value.read().unwrap().deref().to_owned()
     }
 }

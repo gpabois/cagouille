@@ -2,9 +2,12 @@ use crate::event::{traits::Event, EventSlot};
 
 #[derive(Default)]
 pub struct ElementEvents<'a> {
-    onabort: Option<EventSlot<'a, OnAbort>>,
+    onabort:    Option<EventSlot<'a, OnAbort>>,
     onauxclick: Option<EventSlot<'a, OnAuxClick>>,
-    onblur: Option<EventSlot<'a, OnBlur>>
+    onblur:     Option<EventSlot<'a, OnBlur>>,
+    oncancel:   Option<EventSlot<'a, OnCancel>>,
+    oncanplay:  Option<EventSlot<'a, OnCanPlay>>,
+    oncanplaythrough: Option<EventSlot<'a, OnCanPlayThrough>>
 }
 
 pub struct OnAbort;
@@ -22,8 +25,18 @@ impl Event for OnBlur {
 }
 
 pub struct OnCancel;
+impl Event for OnCancel {
+    type Payload = web_sys::AnimationPlaybackEvent;
+}
+
 pub struct OnCanPlay;
+impl Event for OnCanPlay {
+    type Payload = web_sys::Event;
+}
 pub struct OnCanPlayThrough;
+impl Event for OnCanPlayThrough {
+    type Payload = web_sys::Event;
+}
 pub struct OnChange;
 pub struct OnClick;
 pub struct OnClose;

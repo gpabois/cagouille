@@ -28,7 +28,7 @@ impl Scope {
     pub fn new_root() -> Self {
         Self {
             key: Default::default(),
-            el: None,
+            node: None,
             rng: Random::from_seed(Seed::unsafe_new(0)),
         }
     }
@@ -37,7 +37,7 @@ impl Scope {
     pub fn new(key: u32) -> Self {
         Self {
             key: key.into(),
-            el: None,
+            node: None,
             rng: Random::from_seed(Seed::unsafe_new(key.into())),
         }
     }

@@ -5,7 +5,10 @@ pub enum Node {
 
 impl Node {
     pub fn add_child<IntoNode: Into<Node>>(&self, child: IntoNode) {
-        match self {}
+        match self {
+            Node::Text(node) => {},
+            Node::Element(node) => node.add_child(child.into()),
+        }
     }
 }
 

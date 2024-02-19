@@ -12,10 +12,24 @@ impl VNodeData {
     pub fn mount(&mut self, parent: &Node) -> Node {
         match self {
             Self::Component(comp) => comp.mount(parent),
-            Self::Element(el) => comp.mount(parent),
+            Self::Element(el) => el.mount(parent),
             Self::Text(text) => {
-                let node = web_sys::Text::new(text).unwrap();
-                parent.add_child()
+                let mut node = web_sys::Text::new().unwrap();
+                node.set_data(text.as_str());
+                parent.add_child(node.clone());
+                node
+            },
+            Self::Empty => {
+                let node = web_sys::window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .create_element("div")
+                .unwrap();
+
+                parent.add_child(node.clone());
+
+                node
             }
         }
     }

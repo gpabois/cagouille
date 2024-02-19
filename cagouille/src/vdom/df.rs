@@ -42,20 +42,20 @@ impl ElementNode {
 
 #[cfg(test)]
 mod tests {
-    use crate::vdom::{mode::DebugMode, VNode};
+    use crate::vdom::{Scope, VNode};
 
     #[test]
     pub fn vnode_text_same_true() {
-        let n1 = VNode::text("texte 1");
-        let n2 = VNode::text("texte 1");
+        let n1 = VNode::text(Scope::default(), "texte 1");
+        let n2 = VNode::text(Scope::default(), "texte 1");
 
         assert_eq!(n1, n2);
     }
 
     #[test]
     pub fn vnode_text_same_false() {
-        let n1 = VNode::text("texte 1");
-        let n2 = VNode::text("texte 2");
+        let n1 = VNode::text(Scope::default(), "texte 1");
+        let n2 = VNode::text(Scope::default(), "texte 2");
 
         assert_ne!(n1, n2);
     }

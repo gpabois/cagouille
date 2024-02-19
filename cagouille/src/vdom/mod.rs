@@ -2,7 +2,7 @@ use crate::component::traits::Component;
 
 use self::{
     comp::ComponentNode,
-    el::{attr::ElementAttribute, ElementNode},
+    el::{attr::Attribute, ElementNode},
     traits::RenderToStream,
 };
 use futures::{future::LocalBoxFuture, io::AsyncWriteExt, AsyncWrite};
@@ -10,15 +10,15 @@ use futures::{future::LocalBoxFuture, io::AsyncWriteExt, AsyncWrite};
 pub mod df;
 pub mod scope;
 
-mod attr;
-mod comp;
-mod el;
+pub mod comp;
+pub mod el;
+
 mod mount;
-mod node_key;
-mod node_ref;
-pub use node_key::VNodeKey;
+mod initialise;
+mod key;
+
+pub use key::VNodeKey;
 pub use scope::Scope;
-use web_sys::HtmlElement;
 
 pub mod traits {
     use futures::future::LocalBoxFuture;
@@ -65,16 +65,6 @@ enum VNodeData {
     Empty,
 }
 
-impl VNodeData {
-    pub async fn initialise(&mut self) {
-        match self {
-            VNodeData::Component(comp) => comp.initialise().await,
-            VNodeData::Element(el) => el.initialise().await,
-            _ => {}
-        }
-    }
-}
-
 pub struct VNode {
     data: VNodeData,
     scope: Scope,
@@ -113,7 +103,7 @@ impl VNode {
     ) -> Self
     where
         IntoTag: Into<String>,
-        IntoAttrs: IntoIterator<Item = ElementAttribute>,
+        IntoAttrs: IntoIterator<Item = Attribute>,
         IntoChildren: IntoIterator<Item = VNode>,
     {
         Self {
@@ -137,11 +127,6 @@ impl VNode {
     /// Returns the vnode's key
     pub fn key(&self) -> &VNodeKey {
         &self.scope.key
-    }
-
-    /// Initialise the virtual tree
-    pub async fn initialise(&mut self) {
-        self.data.initialise().await
     }
 }
 
