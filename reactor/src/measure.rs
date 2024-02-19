@@ -1,14 +1,63 @@
-use std::{ops::Deref, time::Duration};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, RwLock,
+    },
+    time::Duration,
+};
 
 use crate::{interface::Signal, Context, Interaction};
-use tokio::{sync::watch, time};
+use tokio::time;
+
+struct MeasureInner<D> {
+    counter: std::sync::atomic::AtomicUsize,
+    value: RwLock<D>,
+}
+
+impl<D> MeasureInner<D> {
+    /// Update the value.
+    pub fn update(&self, value: D) {
+        *self.value.write().unwrap() = value;
+        self.counter.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub async fn changed(&self) {
+        let curr = self.counter.load(Ordering::SeqCst);
+        loop {
+            if self.counter.load(Ordering::SeqCst) != curr {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    }
+}
+
+impl<D> MeasureInner<D>
+where
+    D: Default,
+{
+    // Take the inner value
+    pub fn take(&self) -> D {
+        std::mem::take(self.value.write().unwrap().deref_mut())
+    }
+}
 
 /// A measure from the reactor
 /// This allows for external systems to receive updated
 /// upon reactor's state change
-pub struct Measure<D>(watch::Receiver<D>)
+pub struct Measure<D>(Arc<MeasureInner<D>>)
 where
     D: Sync + Send + 'static;
+
+impl<D> Clone for Measure<D>
+where
+    D: Sync + Send + 'static,
+{
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl<D> Measure<D>
 where
@@ -20,33 +69,41 @@ where
         F: Fn(Context<Matter>) -> D + Sync + Send + 'static,
         Matter: 'static,
     {
-        let (sender, recver) = watch::channel(init);
+        let inner = Arc::new(MeasureInner {
+            counter: AtomicUsize::new(0),
+            value: RwLock::new(init),
+        });
+
+        let in1 = inner.clone();
 
         signal.send(Interaction::new(move |ctx| {
-            sender.send(f(ctx)).unwrap();
+            in1.update(f(ctx));
         }));
 
-        Self(recver)
+        Self(inner)
     }
 
     pub async fn changed(&mut self) {
-        self.0.changed().await.unwrap();
-        self.0.borrow_and_update();
+        self.0.changed().await;
     }
 
     pub async fn changed_or_timeout(&mut self, d: Duration) {
         let sleep = time::sleep(d);
         tokio::pin!(sleep);
 
-
         tokio::select! {
             _ = self.changed() => {},
             _ = &mut sleep => {}
         }
     }
+}
 
-    pub fn borrow(&self) -> Ref<'_, D> {
-        Ref(self.0.borrow())
+impl<D> Measure<D>
+where
+    D: Sync + Send + Default + 'static,
+{
+    pub fn take(&self) -> D {
+        self.0.take()
     }
 }
 
@@ -55,16 +112,6 @@ where
     D: Sync + Send + ToOwned<Owned = D> + 'static,
 {
     pub fn to_owned(&self) -> D {
-        self.borrow().deref().to_owned()
-    }
-}
-
-pub struct Ref<'a, D>(watch::Ref<'a, D>);
-
-impl<'a, D> Deref for Ref<'a, D> {
-    type Target = D;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        self.0.value.read().unwrap().deref().to_owned()
     }
 }

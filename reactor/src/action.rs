@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use crate::{reaction::Reaction, Context};
+use crate::Context;
 
 pub struct AnyAction(Box<dyn Any + Send + Sync + 'static>);
 
@@ -29,12 +29,6 @@ pub type ActionFn<Matter> = dyn FnOnce(Context<Matter>) + Sync + Send + 'static;
 
 /// An action in the reactor.
 pub struct Action<Matter>(Box<ActionFn<Matter>>);
-
-impl<Matter> Into<Reaction<Matter>> for Action<Matter> {
-    fn into(self) -> Reaction<Matter> {
-        Reaction::Act(self)
-    }
-}
 
 impl<Matter> Action<Matter> {
     pub fn new<F>(f: F) -> Self

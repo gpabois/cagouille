@@ -1,6 +1,6 @@
 use crate::component::traits::Component;
 use futures::{future::LocalBoxFuture, AsyncWrite};
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 
 use super::traits::RenderToStream;
 

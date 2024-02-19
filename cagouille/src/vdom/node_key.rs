@@ -1,6 +1,3 @@
-use std::sync::{Arc, RwLock};
-
-
 #[derive(Default, Clone, PartialEq)]
 /// A reference to a dom node
 pub struct VNodeKey(pub(super) u32);
@@ -10,3 +7,4 @@ impl From<u32> for VNodeKey {
         VNodeKey(value.into())
     }
 }
+

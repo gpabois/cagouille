@@ -79,11 +79,10 @@ where
         loop {
             tokio::select! {
                  Some(reaction) = self.reactions.recv() => {
-                     match reaction.downcast::<Matter>() {
-                        Some(reaction) => self.process_reaction(reaction).await,
-                        None => {}
+                     if let Some(reaction) = reaction.downcast::<Matter>() {
+                         self.process_reaction(reaction).await
                      }
-                 }
+                }
                  Ok(_) = self.shutdown.changed() => {
                      break;
                  }
@@ -102,7 +101,7 @@ where
                     self.current_interaction.send(None).unwrap();
                     bound.ack();
                 }
-            },
+            }
             Reaction::Interact(interaction) => {
                 let ctx = Context::new(&mut self.matter);
                 let bnd = BoundInteraction::new(interaction.clone().into(), self.signal.clone());

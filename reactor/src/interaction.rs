@@ -1,16 +1,15 @@
-use crate::{
-    interface::Signal,
-    reaction::{AnyReaction, Reaction},
-    Context,
-};
+use crate::{interface::Signal, Context};
 
-use std::{any::Any, sync::{Arc, RwLock}};
+use std::{
+    any::Any,
+    sync::{Arc, RwLock},
+};
 
 struct BoundInteractionInner {
     interaction: AnyInteraction,
     signal: Signal,
     /// The bound interaction is scheduled to be executed
-    scheduled: RwLock<bool>
+    scheduled: RwLock<bool>,
 }
 
 impl PartialEq for BoundInteractionInner {
@@ -29,13 +28,13 @@ impl BoundInteraction {
         Self(Arc::new(BoundInteractionInner {
             interaction,
             signal,
-            scheduled: RwLock::new(false)
+            scheduled: RwLock::new(false),
         }))
     }
 
     /// Send interaction to the reactor
     pub fn schedule(&self) {
-        if *self.0.scheduled.read().unwrap() == false {
+        if !*self.0.scheduled.read().unwrap() {
             *self.0.scheduled.write().unwrap() = true;
             self.0.signal.send(self.clone());
         }
@@ -45,7 +44,10 @@ impl BoundInteraction {
         *self.0.scheduled.write().unwrap() = false;
     }
 
-    pub fn downcast<Matter>(&self) -> Option<Interaction<Matter>> where Matter: 'static {
+    pub fn downcast<Matter>(&self) -> Option<Interaction<Matter>>
+    where
+        Matter: 'static,
+    {
         self.0.interaction.clone().downcast()
     }
 }
@@ -60,12 +62,6 @@ where
 {
     fn from(value: Interaction<Matter>) -> Self {
         Self(value.0)
-    }
-}
-
-impl Into<AnyReaction> for AnyInteraction {
-    fn into(self) -> AnyReaction {
-        AnyReaction::Interact(self)
     }
 }
 
@@ -97,22 +93,6 @@ pub struct Interaction<Matter>(Arc<InteractionInner<Matter>>);
 impl<Matter> PartialEq for Interaction<Matter> {
     fn eq(&self, other: &Self) -> bool {
         Arc::as_ptr(&self.0) == Arc::as_ptr(&other.0)
-    }
-}
-
-impl<Matter> Into<Reaction<Matter>> for Interaction<Matter> {
-    fn into(self) -> Reaction<Matter> {
-        Reaction::Interact(self)
-    }
-}
-
-impl<Matter> Into<AnyReaction> for Interaction<Matter>
-where
-    Matter: 'static,
-{
-    fn into(self) -> AnyReaction {
-        let any_interaction: AnyInteraction = self.into();
-        any_interaction.into()
     }
 }
 

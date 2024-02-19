@@ -1,5 +1,3 @@
-use std::ops::Bound;
-
 use crate::{
     action::{Action, AnyAction},
     interaction::{AnyInteraction, BoundInteraction},
@@ -26,6 +24,18 @@ where
         F: FnOnce(Context<Matter>) + Sync + Send + 'static,
     {
         Self::Act(Action::new(f))
+    }
+}
+
+impl<Matter> From<Action<Matter>> for Reaction<Matter> {
+    fn from(value: Action<Matter>) -> Self {
+        Self::Act(value)
+    }
+}
+
+impl<Matter> From<Interaction<Matter>> for Reaction<Matter> {
+    fn from(value: Interaction<Matter>) -> Self {
+        Self::Interact(value)
     }
 }
 
@@ -68,3 +78,19 @@ impl From<BoundInteraction> for AnyReaction {
         Self::BoundInteract(value)
     }
 }
+
+impl From<AnyInteraction> for AnyReaction {
+    fn from(value: AnyInteraction) -> Self {
+        Self::Interact(value)
+    }
+}
+
+impl<Matter> From<Interaction<Matter>> for AnyReaction
+where
+    Matter: 'static,
+{
+    fn from(value: Interaction<Matter>) -> Self {
+        Self::Interact(value.into())
+    }
+}
+

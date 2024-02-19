@@ -1,12 +1,13 @@
+use crate::vdom::{Scope, VNode};
 use reactor::Reactor;
-
-use crate::vdom::VNode;
+use std::fmt::Debug;
 
 use super::{context::InitContext, traits::Component};
 
+#[derive(Debug)]
 pub struct Matter<C>
 where
-    C: Component
+    C: Component,
 {
     data: C::Data,
     events: C::Events,
@@ -16,27 +17,38 @@ where
 /// State of a component.
 pub struct State<C>
 where
-    C: Component,
+    C: Component + 'static,
 {
     reactor: Reactor<Matter<C>>,
-    vnode: reactor::Measure<VNode>,
+    pub(crate) vnode: reactor::Measure<VNode>,
+}
+
+impl<C> Debug for State<C>
+where
+    C: Component,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("State").finish()
+    }
 }
 
 impl<C> State<C>
 where
-    C: Component,
+    C: Component + 'static,
 {
     pub fn new(props: C::Properties, events: C::Events) -> Self {
-        let mut reactor = Reactor::new(move |ctx| Self::initialise(props, events, ctx));
+        let reactor = Reactor::async_new(move |ctx| Box::pin(Self::initialise(props, events, ctx)));
 
         // Rerender each time the matter is updated.
-        let vnode = reactor.use_measure(VNode::Empty, |ctx| C::render(ctx).unwrap());
+        let vnode = reactor.use_measure(VNode::empty(Scope::default()), |ctx| {
+            C::render(ctx).unwrap()
+        });
 
         Self { reactor, vnode }
     }
 
     /// Bridge between reactor lifecycle and component lifecycle
-    fn initialise(
+    async fn initialise(
         props: C::Properties,
         events: C::Events,
         ctx: reactor::InitContext<Matter<C>>,

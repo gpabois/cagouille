@@ -1,27 +1,24 @@
-use std::{fmt::Debug, sync::Arc};
-
 use crate::component::traits::Component;
 
-use self::{comp::ConcreteComponentNode, el::ElementNode, mode::Mode, traits::RenderToStream};
-use async_std::sync::RwLock;
-use futures::{
-    future::{join_all, LocalBoxFuture},
-    io::AsyncWriteExt,
-    AsyncWrite,
+use self::{
+    comp::ComponentNode,
+    el::{attr::ElementAttribute, ElementNode},
+    traits::RenderToStream,
 };
+use futures::{future::LocalBoxFuture, io::AsyncWriteExt, AsyncWrite};
 
 pub mod df;
-pub mod mode;
 pub mod scope;
 
 mod attr;
 mod comp;
 mod el;
+mod mount;
 mod node_key;
 mod node_ref;
-
 pub use node_key::VNodeKey;
 pub use scope::Scope;
+use web_sys::HtmlElement;
 
 pub mod traits {
     use futures::future::LocalBoxFuture;
@@ -29,19 +26,6 @@ pub mod traits {
     use futures::{AsyncWrite, AsyncWriteExt};
 
     use std::io::{BufWriter, Cursor};
-
-    use super::mode::Mode;
-    use super::VNode;
-
-    pub trait Renderable<'a, M>: Sized + 'a
-    where
-        M: Mode,
-    {
-        /// Render the object and returns a virtual dom's node.
-        fn render<'fut>(self) -> LocalBoxFuture<'fut, Result<VNode<M>, crate::error::Error>>
-        where
-            'a: 'fut;
-    }
 
     /// Render object in the stream
     pub trait RenderToStream<'a>: Sized + 'a {
@@ -65,7 +49,6 @@ pub mod traits {
                 // Scoping to release the mut ref to output.
                 {
                     let mut stream = AllowStdIo::new(BufWriter::new(Cursor::new(&mut output)));
-
                     self.render_to_stream(&mut stream).await?;
                 }
 
@@ -79,95 +62,90 @@ enum VNodeData {
     Component(comp::ComponentNode),
     Element(el::ElementNode),
     Text(String),
-    Empty
+    Empty,
 }
-pub struct VNode
-{
+
+impl VNodeData {
+    pub async fn initialise(&mut self) {
+        match self {
+            VNodeData::Component(comp) => comp.initialise().await,
+            VNodeData::Element(el) => el.initialise().await,
+            _ => {}
+        }
+    }
+}
+
+pub struct VNode {
     data: VNodeData,
-    key: VNodeKey
+    scope: Scope,
 }
 
-impl<M> Debug for VNode<M>
-where
-    M: Mode,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Component(_) => f.debug_tuple("Component").finish(),
-            Self::Element(_) => f.debug_tuple("Element").finish(),
-            Self::Text(arg0) => f.debug_tuple("Text").field(arg0).finish(),
-            Self::Empty => write!(f, "Empty"),
-        }
+impl Default for VNode {
+    fn default() -> Self {
+        Self::empty(Scope::default())
     }
 }
 
-impl<M> VNode<M>
-where
-    M: Mode,
-{
-    pub fn id(&self) -> Option<&VNodeKey> {
-        match self {
-            VNode::Component(comp) => Some(comp.id()),
-            VNode::Element(el) => Some(el.id()),
-            VNode::Text(_) => None,
-            VNode::Empty => None,
+impl VNode {
+    /// Creates an empty virtual node
+    pub fn empty(scope: Scope) -> Self {
+        Self {
+            data: VNodeData::Empty,
+            scope,
         }
     }
 
-    pub fn empty() -> Self {
-        Self::Empty
-    }
-
-    pub fn text<IntoStr: Into<String>>(text: IntoStr) -> Self {
-        Self::Text(text.into())
-    }
-
-    pub fn element<IntoStr: Into<String>>(parent: &Scope, tag: IntoStr) -> ElementNode<M> {
-        ElementNode::new(parent, tag)
-    }
-
-    pub fn component<Comp>(
-        parent: &Scope,
-        props: Comp::Properties,
-        events: Comp::Events,
-    ) -> ConcreteComponentNode<M, Comp>
+    pub fn text<IntoText>(scope: Scope, text: IntoText) -> Self
     where
-        Comp: Component<M> + 'static,
+        IntoText: Into<String>,
     {
-        ConcreteComponentNode::new(parent, props, events)
+        Self {
+            data: VNodeData::Text(text.into()),
+            scope,
+        }
     }
 
-    pub fn iter_children<'a>(&'a self) -> Box<dyn Iterator<Item = &'a VNode<M>> + 'a> {
-        match self {
-            VNode::Element(el) => Box::new(el.iter_children()),
-            _ => Box::new(std::iter::empty()),
+    pub fn element<IntoTag, IntoAttrs, IntoChildren>(
+        scope: Scope,
+        tag: IntoTag,
+        attrs: IntoAttrs,
+        children: IntoChildren,
+    ) -> Self
+    where
+        IntoTag: Into<String>,
+        IntoAttrs: IntoIterator<Item = ElementAttribute>,
+        IntoChildren: IntoIterator<Item = VNode>,
+    {
+        Self {
+            scope,
+            data: VNodeData::Element(ElementNode::new(tag, attrs, children)),
         }
+    }
+
+    pub fn component<Comp>(scope: Scope, props: Comp::Properties, events: Comp::Events) -> Self
+    where
+        Comp: Component + 'static,
+    {
+        Self {
+            scope,
+            data: VNodeData::Component(ComponentNode::new::<Comp>(props, events)),
+        }
+    }
+}
+
+impl VNode {
+    /// Returns the vnode's key
+    pub fn key(&self) -> &VNodeKey {
+        &self.scope.key
     }
 
     /// Initialise the virtual tree
-    pub fn initialise<'a, 'fut>(&'a self) -> LocalBoxFuture<'fut, ()>
-    where
-        'a: 'fut,
-    {
-        Box::pin(async move {
-            match self {
-                VNode::Component(comp) => {
-                    comp.initialise().await;
-                }
-                VNode::Element(el) => {
-                    join_all(el.iter_children().map(|n| n.initialise())).await;
-                }
-                VNode::Text(_) => {}
-                VNode::Empty => {}
-            }
-        })
+    pub async fn initialise(&mut self) {
+        self.data.initialise().await
     }
 }
 
-impl<'a, M> RenderToStream<'a> for &'a VNode<M>
-where
-    M: Mode,
-{
+impl<'a> RenderToStream<'a> for &'a VNodeData {
     fn render_to_stream<'stream, 'fut, W: AsyncWrite + AsyncWriteExt + Unpin>(
         self,
         stream: &'stream mut W,
@@ -178,10 +156,10 @@ where
     {
         Box::pin(async move {
             match self {
-                VNode::Component(comp) => comp.render_to_stream(stream).await?,
-                VNode::Element(el) => el.render_to_stream(stream).await?,
-                VNode::Text(text) => stream.write_all(text.as_bytes()).await?,
-                VNode::Empty => {}
+                Self::Component(comp) => comp.render_to_stream(stream).await?,
+                Self::Element(el) => el.render_to_stream(stream).await?,
+                Self::Text(text) => stream.write_all(text.as_bytes()).await?,
+                Self::Empty => {}
             }
 
             Ok(())
