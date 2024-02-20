@@ -1,5 +1,4 @@
-use crate::{interaction::BoundInteraction, interface::Slot};
-use std::ops::{Deref, DerefMut};
+use crate::sync::{Slot, BoundInteraction};
 use std::sync::RwLock;
 
 /// Track dependencies
@@ -22,7 +21,7 @@ impl Tracker {
         if let Some(bint) = self.slot.current_interaction() {
             let mut ints = self.interactions.write().unwrap();
             ints.push(bint);
-            ints.deref_mut().dedup();
+            ints.dedup();
         }
     }
 
@@ -31,7 +30,6 @@ impl Tracker {
         self.interactions
             .read()
             .unwrap()
-            .deref()
             .iter()
             .for_each(BoundInteraction::schedule);
     }

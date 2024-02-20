@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
-
-use crate::tracker::Tracker;
+use crate::local::Tracker;
 
 /// Atom is a value within a reactor
 /// If the value changes, it will notify all the interactions depending on it

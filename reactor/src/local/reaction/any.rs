@@ -1,45 +1,7 @@
-use crate::{
-    action::{Action, AnyAction},
-    interaction::{AnyInteraction, BoundInteraction},
-    Context, Interaction,
-};
+use crate::local::{BoundInteraction, Interaction, AnyInteraction, AnyAction, Action};
+use super::Reaction;
 
-///  A reactor's command
-pub(crate) enum Reaction<Matter> {
-    BoundInteract(BoundInteraction),
-    Interact(Interaction<Matter>),
-    Act(Action<Matter>),
-}
-
-impl<Matter> Reaction<Matter>
-where
-    Matter: Sync + Send + 'static,
-{
-    pub fn interact<F: Fn(Context<Matter>) + Sync + Send + 'static>(f: F) -> Self {
-        Self::Interact(Interaction::new(f))
-    }
-
-    pub fn act<F>(f: F) -> Self
-    where
-        F: FnOnce(Context<Matter>) + Sync + Send + 'static,
-    {
-        Self::Act(Action::new(f))
-    }
-}
-
-impl<Matter> From<Action<Matter>> for Reaction<Matter> {
-    fn from(value: Action<Matter>) -> Self {
-        Self::Act(value)
-    }
-}
-
-impl<Matter> From<Interaction<Matter>> for Reaction<Matter> {
-    fn from(value: Interaction<Matter>) -> Self {
-        Self::Interact(value)
-    }
-}
-
-pub(crate) enum AnyReaction {
+pub enum AnyReaction {
     BoundInteract(BoundInteraction),
     Interact(AnyInteraction),
     Act(AnyAction),
@@ -48,7 +10,7 @@ pub(crate) enum AnyReaction {
 impl AnyReaction {
     pub fn downcast<Matter>(self) -> Option<Reaction<Matter>>
     where
-        Matter: Send + Sync + 'static,
+        Matter: 'static,
     {
         match self {
             AnyReaction::BoundInteract(any) => Some(Reaction::BoundInteract(any)),
@@ -94,4 +56,12 @@ where
     }
 }
 
-pub mod local {}
+impl<Matter> From<Action<Matter>> for AnyReaction
+where
+    Matter: 'static,
+{
+    fn from(value: Action<Matter>) -> Self {
+        Self::Act(value.into())
+    }
+}
+

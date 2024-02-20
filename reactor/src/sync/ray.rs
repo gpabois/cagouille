@@ -1,8 +1,11 @@
 use std::{ops::Deref, sync::Arc};
-
 use tokio::sync::watch;
-
-use crate::{interface::Signal, reaction::Reaction, tracker::Tracker, Context};
+use crate::sync::{
+    Signal,
+    Reaction,
+    Tracker,
+    Context
+};
 
 /// A ray is a computed read-only value
 pub struct Ray<D>
@@ -22,19 +25,19 @@ where
         F: Fn(Context<Matter>) -> D + Sync + Send + 'static,
         Matter: Sync + Send + 'static,
     {
-        let (sender, receiver) = watch::channel(init);
-        let trck = Arc::new(tracker);
+        let (tx, rx) = watch::channel(init);
+        let tracker = Arc::new(tracker);
 
-        let react_trck = trck.clone();
+        let interaction_tracker = tracker.clone();
 
         signal.send(Reaction::interact(move |ctx| {
-            sender.send(f(ctx)).unwrap();
-            react_trck.trigger();
+            tx.send(f(ctx)).unwrap();
+            interaction_tracker.trigger();
         }));
 
         Ray {
-            value: receiver,
-            tracker: trck,
+            value: rx,
+            tracker,
         }
     }
 
@@ -47,7 +50,7 @@ where
 
 impl<D> Ray<D>
 where
-    D: Send + Sync + Clone + 'static,
+    D: Clone + Sync + Send + 'static,
 {
     pub fn to_owned(&self) -> D {
         self.borrow().clone()

@@ -1,12 +1,13 @@
 use std::ops::{Deref, DerefMut};
-
-use crate::{
-    interface::{Signal, Slot},
-    ray::Ray,
-    reaction::Reaction,
-    tracker::Tracker,
+use crate::local::{
     Atom,
+    Ray,
+    Tracker,
+    Signal,
+    Slot,
+    Reaction
 };
+
 
 /// Initialisation context, to create the matter
 pub struct InitContext<Matter>
@@ -23,7 +24,7 @@ where
     Matter: 'static,
 {
     /// Create a new init context.
-    pub(crate) fn new(signal: Signal, slot: Slot) -> Self {
+    pub fn new(signal: Signal, slot: Slot) -> Self {
         Self {
             signal,
             slot,
@@ -37,7 +38,9 @@ where
     }
 
     /// Creates a new interaction
-    pub fn use_interaction<F: Fn(Context<Matter>)>(&self, f: F) {
+    pub fn use_interaction<F>(&self, f: F) 
+    where F: Fn(Context<Matter>) + 'static
+    {
         self.signal.send(Reaction::interact(f))
     }
 

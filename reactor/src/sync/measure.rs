@@ -1,14 +1,13 @@
 use std::{
-    ops::{Deref, DerefMut},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, RwLock,
-    },
-    time::Duration,
+    sync::{RwLock, Arc},
+    ops::DerefMut,
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration
 };
 
-use crate::{interface::Signal, Context, Interaction};
 use tokio::time;
+
+use crate::sync::{Signal, Interaction, Context};
 
 struct MeasureInner<D> {
     counter: std::sync::atomic::AtomicUsize,
@@ -77,7 +76,7 @@ where
     pub(crate) fn new<Matter, F>(init: D, f: F, signal: Signal) -> Self
     where
         F: Fn(Context<Matter>) -> D + Sync + Send + 'static,
-        Matter: 'static,
+        Matter: Sync + Send + 'static,
     {
         let inner = Arc::new(MeasureInner {
             counter: AtomicUsize::new(0),
@@ -110,7 +109,7 @@ where
 
 impl<D> Measure<D>
 where
-    D: Sync + Send + Default + 'static,
+    D: Default + Sync + Send + 'static,
 {
     pub fn take(&self) -> D {
         self.inner.take()
@@ -119,9 +118,9 @@ where
 
 impl<D> Measure<D>
 where
-    D: Sync + Send + ToOwned<Owned = D> + 'static,
+    D: ToOwned<Owned = D> + Sync + Send + 'static,
 {
     pub fn to_owned(&self) -> D {
-        self.inner.value.read().unwrap().deref().to_owned()
+        self.inner.value.read().unwrap().to_owned()
     }
 }

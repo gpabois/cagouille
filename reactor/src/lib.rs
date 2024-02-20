@@ -1,90 +1,21 @@
-mod action;
-mod r#async;
-mod atom;
-mod conf;
-mod context;
-mod core;
-mod interaction;
-mod interface;
-mod measure;
-mod pilot;
-mod ray;
-mod reaction;
-mod scheduler;
-mod tracker;
+/// Reactor without Sync + Send constraint.
+pub mod local;
 
-pub use atom::Atom;
-pub use context::Context;
-pub use context::InitContext;
-pub use interaction::Interaction;
-pub use measure::Measure;
-use r#async::BoxFuture;
-use r#async::MaybeAsync;
-pub use ray::Ray;
+/// Reactor with Sync + Send constraint.
+pub mod sync;
 
-use pilot::Pilot;
-use reaction::Reaction;
+#[cfg(feature = "wasm")]
+pub use local::{Reaction, Action, Atom, Measure, Interaction}
 
-pub struct Reactor<Matter>(Pilot<Matter>)
-where
-    Matter: 'static;
+#[cfg(all(feature = "tokio", feature = "local"))]
+pub use local::{Reaction, Action, Atom, Measure, Interaction}
 
-impl<Matter> Reactor<Matter>
-where
-    Matter: Sync + Send + 'static,
-{
-    pub fn new<F>(init: F) -> Self
-    where
-        F: FnOnce(InitContext<Matter>) -> Matter,
-    {
-        let f = MaybeAsync::Sync(init);
-        Self(core::Core::create(f))
-    }
-
-    pub fn async_new<F>(init: F) -> Self
-    where
-        F: FnOnce(InitContext<Matter>) -> BoxFuture<'static, Matter> + 'static,
-    {
-        let f = MaybeAsync::Async(Box::new(init));
-        Self(core::Core::create(f))
-    }
-
-    /// Use a measure
-    pub fn use_measure<D, F>(&self, init: D, f: F) -> Measure<D>
-    where
-        D: Sync + Send,
-        F: Fn(Context<Matter>) -> D + Sync + Send + 'static,
-    {
-        Measure::new(init, f, self.0.get_signal())
-    }
-
-    /// Use a measure, wait for it to stabilise (computed at least once)
-    pub async fn use_stabilised_measure<D, F>(&self, init: D, f: F) -> Measure<D>
-    where
-        D: Sync + Send,
-        F: Fn(Context<Matter>) -> D + Sync + Send + 'static,
-    {
-        let mut measure = self.use_measure(init, f);
-        measure.changed().await;
-        measure
-    }
-
-    /// Perform an action
-    pub fn act<F>(&self, f: F)
-    where
-        F: FnOnce(Context<Matter>) + Sync + Send + 'static,
-    {
-        self.0.get_signal().send(Reaction::act(f));
-    }
-
-    pub async fn shutdown(self) {
-        self.0.shutdown().await
-    }
-}
+#[cfg(all(feature = "tokio", feature = "sync"))]
+pub use sync::{Reaction, Action, Atom, Measure, Interaction}
 
 #[cfg(test)]
 mod tests {
-    use crate::{Atom, Ray, Reactor};
+    use crate::sync::{Atom, Ray, Reactor};
     use std::time::Duration;
 
     #[tokio::test]
@@ -97,8 +28,9 @@ mod tests {
         let reactor = Reactor::<Foo>::new(|ctx| Foo {
             atom: ctx.use_atom(true),
         });
+
         // Create a simple measure of data.
-        let measure = reactor.use_stabilised_measure(false, |ctx| *ctx.atom).await;
+        let measure = reactor.use_stabilised_measure(|ctx| *ctx.atom).await;
         assert!(measure.to_owned());
     }
 

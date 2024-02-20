@@ -792,7 +792,9 @@ checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 name = "reactor"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "tokio",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1207,3 +1209,7 @@ dependencies = [
  "proc-macro2",
  "syn 2.0.48",
 ]
+
+[[package]]
+name = "yase"
+version = "0.1.0"
