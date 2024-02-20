@@ -1,6 +1,6 @@
 [package]
 name = "yase"
-description = "Yet another aSync executor"
+description = "Yet another aSync executor - a unified architecture"
 version = "0.1.0"
 edition = "2021"
 

@@ -7,15 +7,17 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3.30"
-futures-locks = "0.7.1"
 cagouille-macro = {path = "../cagouille-macro"}
 wasm-bindgen = "0.2.90"
 tokio = { version = "1.35.1", features = ["rt", "macros"] }
-web-sys = { version = "0.3.68", features = ["HtmlElement", "Window", "Document", "Text", "Event", "MouseEvent", "FocusEvent", "AnimationPlaybackEvent"] }
+web-sys = { version = "0.3.68", features = ["HtmlElement", "Window", "Document", "Text", "Event", "MouseEvent", "FocusEvent", "AnimationPlaybackEvent"], optional = true}
 seeded-random = "0.6.0"
-async-std = "1.12.0"
-either = "1.9.0"
 reactor = {path = "../reactor"}
+yase = {path = "../yase"}
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4"
+
+[features]
+browser = ["dep:web-sys", "reactor/wasm"]
+server-tokio = ["reactor/tokio"]

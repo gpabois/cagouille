@@ -36,9 +36,9 @@ impl<Matter> Reactor<Matter>
     where Matter: 'static
 {
     /// Create a new reactor core, and returns its pilot
-    pub fn new<E, F>(init: F) -> Self 
+    pub fn new<Spawner, F>(init: F) -> Self 
     where 
-        E: LocalExecutor,
+        Spawner: yase::LocalSpawner,
         F: FnOnce(InitContext<Matter>) -> Matter + 'static
     {
         let (signal, signal_rx) = Signal::create();
@@ -46,8 +46,8 @@ impl<Matter> Reactor<Matter>
 
         let sig2 = signal.clone();
         let slot2 = slot.clone();
-        // The core lives within a future.
-        let join = E::spawn_local(async move {
+
+        let join = Spawner::spawn(async move {
             let init_ctx = InitContext::new(sig2.clone(), slot2);
 
             let core = Core::new(

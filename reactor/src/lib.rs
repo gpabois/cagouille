@@ -4,14 +4,31 @@ pub mod local;
 /// Reactor with Sync + Send constraint.
 pub mod sync;
 
-#[cfg(feature = "wasm")]
-pub use local::{Reaction, Action, Atom, Measure, Interaction}
 
-#[cfg(all(feature = "tokio", feature = "local"))]
-pub use local::{Reaction, Action, Atom, Measure, Interaction}
+#[cfg(all(feature = "local"))]
+pub use local::{Reactor, Action, Atom, Measure, Interaction}
 
-#[cfg(all(feature = "tokio", feature = "sync"))]
-pub use sync::{Reaction, Action, Atom, Measure, Interaction}
+#[cfg(all(feature = "local"))]
+pub mod local_api {
+    use crate::local::{Reactor, InitContext};
+    
+    pub fn new_reactor<Matter, F>(init: F) -> Reactor<Matter> where F: FnOnce(InitContext<Matter>) -> Matter + 'static {
+        Reactor::new::<yase::Spawner, Matter>(init)
+    }
+
+    pub fn async_new_reactor<Matter, F, Fut>(init: F) -> Reactor<Matter> 
+        where
+            F: FnOnce(InitContext<Matter>) -> Fut + 'static,
+            Fut: Future<Output=Matter> + 'static {
+                Reactor::async_new<yase::Spawner, Matter>(init)
+            }
+}
+#[cfg(all(feature = "local"))]
+pub use local_api::*;
+
+#[cfg(all(feature = "sync"))]
+pub use sync::{Reactor, Action, Atom, Measure, Interaction}
+
 
 #[cfg(test)]
 mod tests {
