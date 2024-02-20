@@ -10,7 +10,7 @@ impl VNode {
 
 impl VNodeData {
     pub fn mount(&mut self, parent: &Node) -> Node {
-        match self {
+        match &mut self {
             Self::Component(comp) => comp.mount(parent),
             Self::Element(el) => el.mount(parent),
             Self::Text(text) => {
@@ -18,14 +18,14 @@ impl VNodeData {
                 node.set_data(text.as_str());
                 parent.add_child(node.clone());
                 node
-            },
+            }
             Self::Empty => {
                 let node = web_sys::window()
-                .unwrap()
-                .document()
-                .unwrap()
-                .create_element("div")
-                .unwrap();
+                    .unwrap()
+                    .document()
+                    .unwrap()
+                    .create_element("div")
+                    .unwrap();
 
                 parent.add_child(node.clone());
 

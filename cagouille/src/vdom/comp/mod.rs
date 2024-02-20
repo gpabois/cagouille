@@ -5,8 +5,10 @@ use std::any::{Any, TypeId};
 use super::traits::RenderToStream;
 
 pub mod concrete;
-// pub mod df;
 pub mod driver;
+
+#[cfg(target_arch = "wasm32")]
+mod mount;
 
 pub use concrete::ConcreteComponentNode;
 

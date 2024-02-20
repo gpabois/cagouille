@@ -13,9 +13,11 @@ pub mod scope;
 pub mod comp;
 pub mod el;
 
-mod mount;
 mod initialise;
 mod key;
+
+#[cfg(target_arch = "wasm32")]
+mod mount;
 
 pub use key::VNodeKey;
 pub use scope::Scope;
@@ -26,6 +28,12 @@ pub mod traits {
     use futures::{AsyncWrite, AsyncWriteExt};
 
     use std::io::{BufWriter, Cursor};
+
+    pub trait Mountable {
+        type Node;
+
+        fn mount(&mut self, parent: &Self::Node) -> Self::Node;
+    }
 
     /// Render object in the stream
     pub trait RenderToStream<'a>: Sized + 'a {

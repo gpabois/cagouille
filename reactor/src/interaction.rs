@@ -54,7 +54,7 @@ impl BoundInteraction {
 
 #[derive(Clone)]
 /// Any interaction
-pub struct AnyInteraction(Arc<dyn Any + Sync + Send>);
+pub struct AnyInteraction(Arc<dyn Any + Sync + Send + 'static>);
 
 impl<Matter> From<Interaction<Matter>> for AnyInteraction
 where
@@ -104,12 +104,86 @@ impl<Matter> Clone for Interaction<Matter> {
 
 impl<Matter> Interaction<Matter> {
     /// Create a new interaction
-    pub fn new<F: Fn(Context<'_, Matter>) + Sync + Send + 'static>(f: F) -> Self {
+    pub fn new<F>(f: F) -> Self
+    where
+        F: Fn(Context<'_, Matter>) + Sync + Send + 'static,
+    {
         Self(Arc::new(InteractionInner(Box::new(f))))
     }
 
     /// Execute the interaction
     pub fn execute(&self, context: Context<'_, Matter>) {
         self.0 .0(context);
+    }
+}
+
+pub mod local {
+    use std::{any::Any, rc::Rc};
+
+    use crate::Context;
+
+    type LocalInteractionFn<Matter> = dyn Fn(Context<'_, Matter>) + 'static;
+
+    struct LocalInteractionInner<Matter>(Box<LocalInteractionFn<Matter>>);
+
+    /// An interaction is a function run by the reactor's core
+    pub struct LocalInteraction<Matter>(Rc<LocalInteractionInner<Matter>>);
+
+    impl<Matter> PartialEq for LocalInteraction<Matter> {
+        fn eq(&self, other: &Self) -> bool {
+            Rc::as_ptr(&self.0) == Rc::as_ptr(&other.0)
+        }
+    }
+
+    impl<Matter> Clone for LocalInteraction<Matter> {
+        fn clone(&self) -> Self {
+            Self(self.0.clone())
+        }
+    }
+
+    impl<Matter> LocalInteraction<Matter> {
+        /// Create a new interaction
+        pub fn new<F>(f: F) -> Self
+        where
+            F: Fn(Context<'_, Matter>) + 'static,
+        {
+            Self(Rc::new(LocalInteractionInner(Box::new(f))))
+        }
+
+        /// Execute the interaction
+        pub fn execute(&self, context: Context<'_, Matter>) {
+            self.0 .0(context);
+        }
+    }
+
+    #[derive(Clone)]
+    /// Any interaction
+    pub struct LocalAnyInteraction(Rc<dyn Any + 'static>);
+
+    impl<Matter> From<LocalInteraction<Matter>> for LocalAnyInteraction
+    where
+        Matter: 'static,
+    {
+        fn from(value: LocalInteraction<Matter>) -> Self {
+            Self(value.0)
+        }
+    }
+
+    impl PartialEq for LocalAnyInteraction {
+        fn eq(&self, other: &Self) -> bool {
+            std::ptr::addr_eq(Rc::as_ptr(&self.0), Rc::as_ptr(&other.0))
+        }
+    }
+
+    impl LocalAnyInteraction {
+        pub fn downcast<Matter>(self) -> Option<LocalInteraction<Matter>>
+        where
+            Matter: 'static,
+        {
+            match self.0.downcast::<LocalInteractionInner<Matter>>() {
+                Ok(inner) => Some(LocalInteraction(inner)),
+                Err(_) => None,
+            }
+        }
     }
 }

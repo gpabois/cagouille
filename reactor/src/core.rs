@@ -3,7 +3,7 @@ use crate::{
     interaction::BoundInteraction,
     interface::{Signal, Slot},
     pilot::Pilot,
-    r#async::{BoxFuture, MaybeAsync},
+    r#async::MaybeAsync,
     reaction::{AnyReaction, Reaction},
     Context,
 };
@@ -27,25 +27,8 @@ impl<Matter> Core<Matter>
 where
     Matter: Sync + Send + 'static,
 {
-    /// Create the reactor's core with a sync init routine.
-    pub fn create<F>(init: F) -> Pilot<Matter>
-    where
-        F: FnOnce(InitContext<Matter>) -> Matter + Send + Sync + 'static,
-    {
-        let routine = MaybeAsync::Sync(Box::new(init));
-        Self::_create(routine)
-    }
-
-    pub fn async_create<F>(init: F) -> Pilot<Matter>
-    where
-        F: FnOnce(InitContext<Matter>) -> BoxFuture<'static, Matter> + Send + Sync + 'static,
-    {
-        let routine = MaybeAsync::Async(Box::new(init));
-        Self::_create(routine)
-    }
-
     /// Create a new reactor core, and returns its pilot
-    fn _create(init: MaybeAsync<InitContext<Matter>, Matter>) -> Pilot<Matter> {
+    pub fn create<S>(init: MaybeAsync<InitContext<Matter>, Matter>) -> Pilot<Matter> {
         let (any_reactions_sender, any_reactions_recv) = mpsc::unbounded_channel::<AnyReaction>();
         let (shutdown_sender, shutdown_recv) = watch::channel(false);
         let (current_sender, current_recv) = watch::channel::<Option<BoundInteraction>>(None);

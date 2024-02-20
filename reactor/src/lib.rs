@@ -1,6 +1,7 @@
 mod action;
 mod r#async;
 mod atom;
+mod conf;
 mod context;
 mod core;
 mod interaction;
@@ -9,6 +10,7 @@ mod measure;
 mod pilot;
 mod ray;
 mod reaction;
+mod scheduler;
 mod tracker;
 
 pub use atom::Atom;
@@ -17,6 +19,7 @@ pub use context::InitContext;
 pub use interaction::Interaction;
 pub use measure::Measure;
 use r#async::BoxFuture;
+use r#async::MaybeAsync;
 pub use ray::Ray;
 
 use pilot::Pilot;
@@ -24,7 +27,7 @@ use reaction::Reaction;
 
 pub struct Reactor<Matter>(Pilot<Matter>)
 where
-    Matter: Sync + Send + 'static;
+    Matter: 'static;
 
 impl<Matter> Reactor<Matter>
 where
@@ -32,16 +35,18 @@ where
 {
     pub fn new<F>(init: F) -> Self
     where
-        F: (FnOnce(InitContext<Matter>) -> Matter) + Sync + Send + 'static,
+        F: FnOnce(InitContext<Matter>) -> Matter,
     {
-        Self(core::Core::create(init))
+        let f = MaybeAsync::Sync(init);
+        Self(core::Core::create(f))
     }
 
     pub fn async_new<F>(init: F) -> Self
     where
-        F: FnOnce(InitContext<Matter>) -> BoxFuture<'static, Matter> + Sync + Send + 'static,
+        F: FnOnce(InitContext<Matter>) -> BoxFuture<'static, Matter> + 'static,
     {
-        Self(core::Core::async_create(init))
+        let f = MaybeAsync::Async(Box::new(init));
+        Self(core::Core::create(f))
     }
 
     /// Use a measure
@@ -79,18 +84,18 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use crate::{Atom, Ray, Reactor};
+    use std::time::Duration;
 
     #[tokio::test]
     /// Test measure, without any reaction.
     pub async fn test_measure_no_reaction() {
         pub struct Foo {
-            atom: Atom<bool>
+            atom: Atom<bool>,
         }
 
         let reactor = Reactor::<Foo>::new(|ctx| Foo {
-            atom: ctx.use_atom(true)
+            atom: ctx.use_atom(true),
         });
         // Create a simple measure of data.
         let measure = reactor.use_stabilised_measure(false, |ctx| *ctx.atom).await;
@@ -117,8 +122,12 @@ mod tests {
         });
 
         // Create a simple measure of data.
-        let mut m0 = reactor.use_stabilised_measure(false, |ctx| ctx.r0.to_owned()).await;
-        let mut m1 = reactor.use_stabilised_measure(0, |ctx| ctx.a2.to_owned()).await;
+        let mut m0 = reactor
+            .use_stabilised_measure(false, |ctx| ctx.r0.to_owned())
+            .await;
+        let mut m1 = reactor
+            .use_stabilised_measure(0, |ctx| ctx.a2.to_owned())
+            .await;
 
         // Modify two deps, it should call ray's function only once.
         reactor.act(|mut ctx| {

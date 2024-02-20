@@ -11,7 +11,7 @@ use crate::{
 /// Initialisation context, to create the matter
 pub struct InitContext<Matter>
 where
-    Matter: Sync + Send + 'static,
+    Matter: 'static,
 {
     _pht: std::marker::PhantomData<Matter>,
     signal: Signal,
@@ -20,7 +20,7 @@ where
 
 impl<Matter> InitContext<Matter>
 where
-    Matter: Sync + Send + 'static,
+    Matter: 'static,
 {
     /// Create a new init context.
     pub(crate) fn new(signal: Signal, slot: Slot) -> Self {
@@ -37,15 +37,15 @@ where
     }
 
     /// Creates a new interaction
-    pub fn use_interaction<F: Fn(Context<Matter>) + Send + Sync + 'static>(&self, f: F) {
+    pub fn use_interaction<F: Fn(Context<Matter>)>(&self, f: F) {
         self.signal.send(Reaction::interact(f))
     }
 
     /// Creates a new ray
     pub fn use_ray<D, F>(&self, init: D, f: F) -> Ray<D>
     where
-        F: Fn(Context<Matter>) -> D + Send + Sync + 'static,
-        D: Sync + Send + 'static,
+        F: Fn(Context<Matter>) -> D + 'static,
+        D: 'static,
     {
         Ray::new(
             init,

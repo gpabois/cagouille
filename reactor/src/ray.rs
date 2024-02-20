@@ -47,7 +47,7 @@ where
 
 impl<D> Ray<D>
 where
-    D: Sync + Send + Clone + 'static,
+    D: Send + Sync + Clone + 'static,
 {
     pub fn to_owned(&self) -> D {
         self.borrow().clone()

@@ -20,6 +20,7 @@ where
     },
     Initialised {
         state: State<Comp>,
+        vnode: VNode,
     },
 }
 
@@ -34,7 +35,7 @@ where
                 .field("props", props)
                 .field("events", events)
                 .finish(),
-            Self::Initialised { state } => {
+            Self::Initialised { state, vnode: _ } => {
                 f.debug_struct("Initialised").field("state", state).finish()
             }
         }
@@ -51,18 +52,8 @@ where
 
     pub fn is_initialised(&self) -> bool {
         match self {
-            Self::Initialised { state: _ } => true,
+            Self::Initialised { state: _, vnode: _ } => true,
             _ => false,
-        }
-    }
-
-    pub fn get_state(&self) -> Option<&State<Comp>> {
-        match &self {
-            ConcreteComponentNode::Uninitialised {
-                props: _,
-                events: _,
-            } => None,
-            ConcreteComponentNode::Initialised { state } => Some(state),
         }
     }
 }
@@ -71,47 +62,28 @@ impl<Comp> CompDriver for ConcreteComponentNode<Comp>
 where
     Comp: Component + 'static,
 {
-    /// Initialise the component
-    fn initialise<'a, 'fut>(&'a mut self) -> LocalBoxFuture<'fut, Result<(), Error>>
-    where
-        'a: 'fut,
-    {
+    /// Initialise the component.
+    /// Call render once.
+    fn initialise<'fut>(&'fut mut self) -> LocalBoxFuture<'fut, Result<(), Error>> {
         if self.is_initialised() {
             return Box::pin(std::future::ready(Ok(())));
         }
 
-        match self {
-            Self::Uninitialised { props, events } => {
-                let props = std::mem::take(props);
-                let events = std::mem::take(events);
+        Box::pin(async {
+            match self {
+                Self::Uninitialised { props, events } => {
+                    let props = std::mem::take(props);
+                    let events = std::mem::take(events);
 
-                *self = Self::Initialised {
-                    state: State::new(props, events),
-                };
+                    let state = State::new(props, events);
+                    let vnode = state.vnode.changed().await.take();
+
+                    *self = Self::Initialised { state, vnode };
+
+                    Ok(())
+                }
+                _ => Ok(()),
             }
-            _ => {}
-        };
-
-        let mut vnode_measure = self.get_state().unwrap().vnode.clone();
-        let (init_tx, init_rx) = tokio::sync::oneshot::channel::<Result<(), Error>>();
-
-        // Spawn the virtual node watcher
-        tokio::spawn(async move {
-            vnode_measure.changed().await;
-
-            let mut vnode: VNode = vnode_measure.take();
-            vnode.initialise().await;
-            init_tx.send(Ok(()));
-
-            loop {
-                vnode_measure.changed().await;
-                let new_vnode = vnode_measure.take();
-                // Patch
-                vnode.patch(new_vnode);
-            }
-        });
-
-        // Initialise component's root vnode.
-        Box::pin(async move { init_rx.await.unwrap() })
+        })
     }
 }
